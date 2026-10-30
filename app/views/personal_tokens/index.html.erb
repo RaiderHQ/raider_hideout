@@ -1,0 +1,61 @@
+<% content_for :title, "Personal tokens · Raider Hideout" %>
+<h1 class="text-2xl font-semibold mb-2">Personal tokens</h1>
+<p class="text-neutral-dk mb-6">Read-only tokens for the Raider Hideout API and MCP clients such as Claude Code. A token sees the projects you can see, and loses a project as soon as you leave its organization.</p>
+<%= panel(extra: "mb-6") do %>
+  <% if @tokens.empty? %>
+    <p class="text-neutral-mid">No tokens yet.</p>
+  <% else %>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-neutral-mid">
+          <th class="py-2 font-medium">Name</th>
+          <th class="py-2 font-medium">Token</th>
+          <th class="py-2 font-medium">Created</th>
+          <th class="py-2 font-medium">Last used</th>
+          <th class="py-2 font-medium">Expires</th>
+          <th class="py-2 font-medium">Status</th>
+          <th class="py-2"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-bdr">
+        <% @tokens.each do |token| %>
+          <% status = token.status %>
+          <tr id="<%= dom_id(token) %>">
+            <td class="py-3 font-medium"><%= token.name %></td>
+            <td class="py-3 font-mono"><%= token.token_prefix %>…</td>
+            <td class="py-3"><%= token.created_at.strftime("%b %-d, %Y") %></td>
+            <td class="py-3"><%= token.last_used_at ? "#{time_ago_in_words(token.last_used_at)} ago" : "never" %></td>
+            <td class="py-3"><%= token.expires_at ? token.expires_at.strftime("%b %-d, %Y") : "never" %></td>
+            <td class="py-3" data-testid="token-status"><%= status %></td>
+            <td class="py-3 text-right">
+              <% if status == "active" %>
+                <%= button_to "Revoke", personal_token_path(token), method: :delete,
+                      class: button_classes(:danger, extra: "min-w-0"),
+                      form: { data: { turbo_confirm: "Revoke #{token.name}? Clients using it stop working at once." } } %>
+              <% end %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+<% end %>
+<%= panel do %>
+  <h2 class="text-lg font-semibold mb-4">New token</h2>
+  <%= form_with url: personal_tokens_path, scope: :personal_token, data: { turbo: false }, class: "flex flex-wrap items-end gap-3" do |f| %>
+    <% if @token&.errors&.any? %>
+      <p role="alert" class="w-full rounded-md bg-status-err-bg text-status-err px-4 py-3 text-sm"><%= @token.errors.full_messages.to_sentence %></p>
+    <% end %>
+    <div class="flex-1">
+      <%= f.label :name, "Name", class: "block text-sm font-medium mb-1" %>
+      <%= f.text_field :name, value: @token&.name, maxlength: 100, placeholder: "e.g. Claude on my laptop",
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+    </div>
+    <div>
+      <%= f.label :expires_in, "Expires", class: "block text-sm font-medium mb-1" %>
+      <%= f.select :expires_in, options_for_select(PersonalTokensController::EXPIRY_OPTIONS, @expires_in.presence || "90"), {},
+            class: "rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+    </div>
+    <%= f.submit "Create token", class: button_classes(:primary) %>
+  <% end %>
+<% end %>

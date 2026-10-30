@@ -1,0 +1,18 @@
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+<% end %>
+<% content_for :title, "Token created · Raider Hideout" %>
+<% app_url = root_url.chomp("/") %>
+<h1 class="text-2xl font-semibold mb-6">Token created</h1>
+<%= panel(extra: "space-y-4") do %>
+  <p class="font-medium">Copy this token now. You won't see it again.</p>
+  <div data-controller="clipboard" class="flex gap-3">
+    <code data-clipboard-target="source" data-testid="personal-token" class="flex-1 rounded-md bg-neutral-lt px-4 py-2.5 font-mono text-sm break-all"><%= @plaintext %></code>
+    <button type="button" data-action="clipboard#copy" class="<%= button_classes(:secondary, extra: 'min-w-0') %>">Copy</button>
+  </div>
+  <p class="text-sm font-medium">Claude Code</p>
+  <pre class="rounded-md bg-neutral-dark text-neutral-wh p-4 text-xs overflow-x-auto"><code>claude mcp add --transport http raider <%= app_url %>/mcp --header "Authorization: Bearer <%= @plaintext %>"</code></pre>
+  <p class="text-sm font-medium">curl</p>
+  <pre class="rounded-md bg-neutral-dark text-neutral-wh p-4 text-xs overflow-x-auto"><code>curl -H "Authorization: Bearer <%= @plaintext %>" <%= app_url %>/api/v1/projects</code></pre>
+  <%= link_to "Back to tokens", personal_tokens_path, class: button_classes(:outline) %>
+<% end %>

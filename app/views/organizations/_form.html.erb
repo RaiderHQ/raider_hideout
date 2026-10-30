@@ -1,0 +1,8 @@
+<%= form_with model: organization, class: "space-y-4" do |f| %>
+  <% if organization.errors.any? %>
+    <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3"><%= organization.errors.full_messages.to_sentence %></div>
+  <% end %>
+  <%= f.text_field :name, required: true, autofocus: true, placeholder: "Organization name",
+        class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+  <%= f.submit organization.persisted? ? "Save" : "Create organization", class: button_classes(:primary) %>
+<% end %>

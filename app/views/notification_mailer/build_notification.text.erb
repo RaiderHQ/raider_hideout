@@ -1,0 +1,15 @@
+<%= @message.title %>
+
+<%= @message.summary %>
+<% if @message.branch.present? %>Branch: <%= @message.branch %>
+<% end %><% if @message.commit.present? %>Commit: <%= @message.commit %>
+<% end %><% if @message.failures.any? %>
+Failures:
+<% @message.failures.each do |failure| %>- <%= failure %>
+<% end %><% end %><% if @message.new_flaky.any? %>
+New flaky tests:
+<% @message.new_flaky.each do |name| %>- <%= name %>
+<% end %><% end %>
+View build: <%= @message.build_url %>
+<% if @message.pr_url.present? %>Pull request: <%= @message.pr_url %>
+<% end %>

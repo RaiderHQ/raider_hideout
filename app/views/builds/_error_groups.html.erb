@@ -1,0 +1,44 @@
+<%
+  rows = counts.map { |id, n| [ groups[id], n ] }.sort_by { |g, n| [ -n, g.exception_class ] }
+  multi, singles = rows.partition { |_g, n| n >= 2 }
+%>
+<%= panel(extra: "mb-6", padding: "p-4") do %>
+  <div data-testid="error-groups">
+    <h2 class="text-sm font-semibold mb-3">Error groups</h2>
+    <ul class="space-y-2">
+      <% multi.each do |group, n| %>
+        <li data-testid="error-group-row" class="rounded-md border border-neutral-bdr px-3 py-2">
+          <div class="flex items-baseline justify-between gap-3">
+            <%= link_to project_error_path(build.project, group), class: "min-w-0 text-ruby" do %>
+              <span class="font-semibold"><%= group.exception_class %></span>
+              <span class="block text-sm text-neutral-dark"><%= group.normalized_message %></span>
+              <% if group.frame.present? %><span class="block font-mono text-xs text-neutral-mid"><%= group.frame %></span><% end %>
+            <% end %>
+            <span class="text-sm font-semibold whitespace-nowrap"><%= n %> tests</span>
+          </div>
+          <details class="mt-2">
+            <summary class="text-xs text-neutral-mid cursor-pointer">Tests</summary>
+            <ul class="mt-1 space-y-1 text-sm">
+              <% failed.fetch(group.id, []).each do |result| %>
+                <li><%= result.test_case.full_name %> <span class="font-mono text-xs text-neutral-mid"><%= result.test_case.file_path %></span></li>
+              <% end %>
+            </ul>
+          </details>
+        </li>
+      <% end %>
+    </ul>
+    <% if singles.any? %>
+      <details data-testid="other-failures" class="mt-3">
+        <summary class="text-xs text-neutral-mid cursor-pointer">Other failures (<%= singles.size %>)</summary>
+        <ul class="mt-1 space-y-1 text-sm">
+          <% singles.each do |group, _n| %>
+            <% failed.fetch(group.id, []).each do |result| %>
+              <li><%= link_to result.test_case.full_name, project_error_path(build.project, group), class: "text-ruby" %>
+                <span class="text-xs text-neutral-mid"><%= group.exception_class %> · <%= group.normalized_message %></span></li>
+            <% end %>
+          <% end %>
+        </ul>
+      </details>
+    <% end %>
+  </div>
+<% end %>

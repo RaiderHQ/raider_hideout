@@ -1,0 +1,23 @@
+<div id="<%= dom_id(build) %>" class="relative flex items-center gap-4 px-4 py-3 rounded-md hover:bg-ruby-sub transition-colors">
+  <%= status_pill(build.status) %>
+  <%= gate_list_mark(build) %>
+  <%= link_to project_build_path(build.project, build),
+        class: "flex-1 min-w-0 after:absolute after:inset-0 after:content-['']" do %>
+    <p class="font-medium truncate mb-1"><%= build.commit_message.presence || "Build ##{build.id}" %></p>
+    <p class="text-xs text-neutral-mid">
+      <%= build.branch || "no branch" %><% if build.commit_sha %> · <span class="font-mono"><%= build.commit_sha.first(7) %></span><% end %>
+      <% if build.shard_progress %>· <%= build.shard_progress %> shards<% end %>
+      · <%= time_ago_in_words(build.created_at) %> ago
+    </p>
+  <% end %>
+  <% pr_url = pull_request_url(build) %>
+  <% if pr_url %>
+    <%= link_to "PR ##{build.pr_number}", pr_url, class: "relative z-10 text-[11px] px-2 py-0.5 rounded-sm bg-ruby-sub text-ruby flex-shrink-0", target: "_blank", rel: "noopener noreferrer" %>
+  <% end %>
+  <div class="text-right text-sm">
+    <p><span class="text-status-ok"><%= build.passed_count %></span> / <span class="text-status-err"><%= build.failed_count %></span>
+       <% if build.flaky_count.positive? %>· <span class="text-accent-gold"><%= build.flaky_count %> flaky</span><% end %>
+       <% if build.quarantined_count.positive? %>· <span class="text-status-quarantine"><%= build.quarantined_count %> quarantined</span><% end %></p>
+    <p class="text-xs text-neutral-mid"><%= build.duration_label %></p>
+  </div>
+</div>

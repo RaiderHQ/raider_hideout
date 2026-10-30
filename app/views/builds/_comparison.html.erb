@@ -1,0 +1,31 @@
+<%= panel(extra: "mb-6", padding: "p-4") do %>
+  <div id="comparison" data-testid="comparison">
+  <% if comparison.available? && comparison.expired? %>
+    <p class="text-sm text-neutral-mid">Baseline results expired — compared builds are older than <%= Retention.config.result_days %> days.</p>
+  <% elsif comparison.available? %>
+    <h2 class="text-sm font-semibold mb-3">Compared with <%= link_to comparison.branch || "baseline", project_build_path(build.project, comparison.baseline), class: "text-ruby" %> · build #<%= comparison.baseline.id %></h2>
+    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+      <% ComparisonHelper::BUCKET_LABELS.each do |bucket, label| %>
+        <% tests = comparison.public_send(bucket) %>
+        <details data-bucket="<%= bucket %>" class="rounded-md border border-neutral-bdr px-3 py-2">
+          <summary class="cursor-pointer list-none flex items-baseline justify-between">
+            <span class="text-xs uppercase tracking-wider text-neutral-mid"><%= label %></span>
+            <span class="text-lg font-semibold"><%= tests.size %></span>
+          </summary>
+          <ul class="mt-2 space-y-1 text-sm">
+            <% tests.first(ComparisonHelper::LIST_LIMIT).each do |test_case| %>
+              <li><%= link_to test_case.full_name, project_test_case_path(build.project, test_case), class: "text-ruby" %>
+                <span class="block font-mono text-xs text-neutral-mid"><%= test_case.file_path %></span></li>
+            <% end %>
+            <% if tests.size > ComparisonHelper::LIST_LIMIT %>
+              <li class="text-xs text-neutral-mid">and <%= tests.size - ComparisonHelper::LIST_LIMIT %> more</li>
+            <% end %>
+          </ul>
+        </details>
+      <% end %>
+    </div>
+  <% else %>
+    <p class="text-sm text-neutral-mid">No baseline yet — once a build on <%= build.comparison_branch || "the default branch" %> completes, builds will be compared with it.</p>
+  <% end %>
+  </div>
+<% end %>

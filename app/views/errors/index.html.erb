@@ -1,0 +1,47 @@
+<div class="flex items-center justify-between mb-6 gap-4">
+  <h1 class="text-2xl font-semibold"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Errors</h1>
+  <%= form_with url: project_errors_path(current_project), method: :get, class: "flex gap-2" do |f| %>
+    <%= f.select :window, options_for_select(@windows.map { |d| ["Last #{d} days", d] }, @window), {},
+          data: { controller: "auto-submit", action: "change->auto-submit#submit" }, class: "rounded-md border border-neutral-bdr px-3 py-2 text-sm" %>
+    <%= f.select :branch, options_for_select([["All branches", ""]] + @branches, @branch), {},
+          data: { controller: "auto-submit", action: "change->auto-submit#submit" }, class: "rounded-md border border-neutral-bdr px-3 py-2 text-sm" %>
+  <% end %>
+</div>
+<%= panel(padding: "p-2") do %>
+  <% if @rows.empty? %>
+    <p class="p-4 text-neutral-mid">No errors in the last <%= @window %> days.</p>
+  <% else %>
+    <table class="w-full text-sm" data-testid="errors-table">
+      <thead>
+        <tr class="text-left text-xs uppercase tracking-wider text-neutral-mid">
+          <th class="px-4 py-2">Error</th>
+          <th class="px-4 py-2 text-right">Failures</th>
+          <th class="px-4 py-2 text-right">Tests</th>
+          <th class="px-4 py-2 text-right">Builds</th>
+          <th class="px-4 py-2">First seen</th>
+          <th class="px-4 py-2">Last seen</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-bdr">
+        <% @rows.each do |row| %>
+          <% group = row[:group] %>
+          <tr data-testid="error-row">
+            <td class="px-4 py-3 min-w-0">
+              <%= link_to project_error_path(current_project, group), class: "text-ruby" do %>
+                <span class="font-semibold"><%= group.exception_class %></span>
+                <span class="block text-neutral-dark"><%= group.normalized_message %></span>
+                <% if group.frame.present? %><span class="block font-mono text-xs text-neutral-mid"><%= group.frame %></span><% end %>
+              <% end %>
+            </td>
+            <td class="px-4 py-3 text-right font-semibold"><%= row[:failures] %></td>
+            <td class="px-4 py-3 text-right"><%= row[:tests] %></td>
+            <td class="px-4 py-3 text-right"><%= row[:builds] %></td>
+            <td class="px-4 py-3 whitespace-nowrap"><%= l(group.first_seen_at, format: :short) %></td>
+            <td class="px-4 py-3 whitespace-nowrap"><%= l(row[:last_seen], format: :short) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+<% end %>
+<div class="mt-4"><%== @pagy.series_nav if @pagy.pages > 1 %></div>

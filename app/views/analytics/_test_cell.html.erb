@@ -1,0 +1,7 @@
+<%# flags: status pill names shown beside the test link (flaky, quarantined) %>
+<% flags = local_assigns.fetch(:flags, []) %>
+<td class="py-1.5 pr-2">
+  <%= link_to test_case.full_name, analytics_test_path(test_case), class: "font-medium text-ruby" %>
+  <% flags.each do |flag| %><%= status_pill(flag) %><% end %>
+</td>
+<td class="pr-2 font-mono text-xs text-neutral-mid"><%= test_case.file_path %></td>

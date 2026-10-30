@@ -1,0 +1,950 @@
+openapi: 3.1.0
+info:
+  title: Raider API
+  version: "1"
+  description: |
+    Read-only access to the test results of the Raider projects you can see.
+
+    Authenticate with a personal token from the Tokens page (`/account/tokens`):
+    `Authorization: Bearer rdp_…`. A token sees exactly the projects of its owner's
+    organizations, checked on every request. Lists are paged with `page` (from 1) and
+    `per_page` (1–100, default 50); a page past the end is empty. Times are ISO 8601 UTC;
+    `url` fields link to the matching Raider page. A personal token has 600 requests a
+    minute, shared between this API and the MCP endpoint (`POST /mcp`).
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/projects:
+    get:
+      operationId: listProjects
+      summary: Projects you can see, latest build first
+      description: Projects without builds come last, by name.
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}:
+    get:
+      operationId: getProject
+      summary: A project, with its default branch's health over the last 30 days
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+      responses:
+        "200":
+          description: The project and its health
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/builds:
+    get:
+      operationId: listBuilds
+      summary: A project's builds, newest first
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: branch
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/BuildStatus"
+        - name: since
+          in: query
+          description: Only builds created in this window; default all
+          schema:
+            $ref: "#/components/schemas/Range"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of builds
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Build"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/builds/{id}:
+    get:
+      operationId: getBuild
+      summary: One build with its gate, comparison, failures and shards
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: id
+          in: path
+          required: true
+          description: A build id, or `latest` for the newest build on `branch`
+          schema:
+            type: string
+            pattern: "^([0-9]+|latest)$"
+        - name: branch
+          in: query
+          description: With `latest`, the branch; default the project's default branch
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The build
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildDetail"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/tests:
+    get:
+      operationId: searchTests
+      summary: Tests matching an Explore query, one row per test
+      description: |
+        `q` uses Explore syntax: words match the test name or file; filters `name:`, `file:`, `error:`,
+        `status:` (passed, failed, skipped, pending, quarantined; comma-separated), `branch:` (default the
+        default branch), `tag:`, `is:flaky`, `is:quarantined`, `since:` (24h, 7d, 30d, 90d; default 7d) and
+        `sort:` (failures, recent, duration, name). Unknown or bad terms never fail the request; they are
+        listed in `meta.notices`.
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: q
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of tests
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Test"
+                  meta:
+                    $ref: "#/components/schemas/TestsMeta"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/tests/{id}:
+    get:
+      operationId: getTest
+      summary: One test with its recent results, verdicts and quarantine
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The test
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/errors:
+    get:
+      operationId: listErrorGroups
+      summary: Error groups seen in a window, last seen first
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: since
+          in: query
+          description: Groups last seen in this window; default 30d
+          schema:
+            $ref: "#/components/schemas/Range"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of error groups
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ErrorGroup"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/errors/{id}:
+    get:
+      operationId: getErrorGroup
+      summary: One error group with the tests it affects
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: The error group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorGroupDetail"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/flaky:
+    get:
+      operationId: listFlakyTests
+      summary: Flaky tests on a branch, highest flip rate first
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - name: branch
+          in: query
+          description: Default the project's default branch
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of flaky tests
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FlakyTest"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /api/v1/projects/{project_slug}/quarantines:
+    get:
+      operationId: listQuarantines
+      summary: Active quarantines, soonest expiry first
+      parameters:
+        - $ref: "#/components/parameters/ProjectSlug"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: One page of active quarantines
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Quarantine"
+                  meta:
+                    $ref: "#/components/schemas/Meta"
+        "400":
+          $ref: "#/components/responses/InvalidParameters"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: A personal token, `rdp_` followed by 32 characters.
+  parameters:
+    ProjectSlug:
+      name: project_slug
+      in: path
+      required: true
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+  responses:
+    InvalidParameters:
+      description: A parameter is invalid; `details` has one message per parameter
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/InvalidParameters"
+    Unauthorized:
+      description: Missing, unknown, expired or revoked token, or a project (`rdr_`) token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    NotFound:
+      description: No such project among the projects you can see, or no such record in it
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    RateLimited:
+      description: More than 600 requests in a minute with this token
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    Error:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: string
+    InvalidParameters:
+      type: object
+      additionalProperties: false
+      required: [error, details]
+      properties:
+        error:
+          const: invalid parameters
+        details:
+          type: array
+          minItems: 1
+          items:
+            type: string
+    Meta:
+      type: object
+      additionalProperties: false
+      required: [page, per_page, total, next_page]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+        next_page:
+          type: [integer, "null"]
+    Time:
+      type: string
+      format: date-time
+    NullableTime:
+      type: [string, "null"]
+      format: date-time
+    Percent:
+      type: [integer, "null"]
+      minimum: 0
+      maximum: 100
+    BuildStatus:
+      type: string
+      enum: [passed, failed, incomplete]
+    GateState:
+      type: string
+      enum: [pending, none, passed, failed]
+    LatestBuild:
+      type: object
+      additionalProperties: false
+      required: [id, status, pass_rate, gate_status, branch, created_at]
+      properties:
+        id:
+          type: integer
+        status:
+          $ref: "#/components/schemas/BuildStatus"
+        pass_rate:
+          $ref: "#/components/schemas/Percent"
+        gate_status:
+          $ref: "#/components/schemas/GateState"
+        branch:
+          type: [string, "null"]
+        created_at:
+          $ref: "#/components/schemas/Time"
+    ProjectFields:
+      type: object
+      required: [slug, name, organization, default_branch, latest_build, url]
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        organization:
+          type: object
+          additionalProperties: false
+          required: [slug, name]
+          properties:
+            slug:
+              type: string
+            name:
+              type: string
+        default_branch:
+          type: string
+        latest_build:
+          anyOf:
+            - type: "null"
+            - $ref: "#/components/schemas/LatestBuild"
+        url:
+          type: string
+          format: uri
+    Project:
+      allOf:
+        - $ref: "#/components/schemas/ProjectFields"
+      unevaluatedProperties: false
+    Range:
+      type: string
+      enum: [24h, 7d, 30d, 90d]
+    Counts:
+      type: object
+      additionalProperties: false
+      required: [total, passed, failed, skipped, pending, flaky, quarantined]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+        passed:
+          type: integer
+          minimum: 0
+        failed:
+          type: integer
+          minimum: 0
+        skipped:
+          type: integer
+          minimum: 0
+        pending:
+          type: integer
+          minimum: 0
+        flaky:
+          type: integer
+          minimum: 0
+        quarantined:
+          type: integer
+          minimum: 0
+    BuildFields:
+      type: object
+      required: [id, build_key, branch, commit_sha, commit_message, status, counts, pass_rate, gate_status, duration_ms, pr, ci_url, url, created_at]
+      properties:
+        id:
+          type: integer
+        build_key:
+          type: string
+        branch:
+          type: [string, "null"]
+        commit_sha:
+          type: [string, "null"]
+        commit_message:
+          type: [string, "null"]
+        status:
+          $ref: "#/components/schemas/BuildStatus"
+        counts:
+          $ref: "#/components/schemas/Counts"
+        pass_rate:
+          $ref: "#/components/schemas/Percent"
+        gate_status:
+          $ref: "#/components/schemas/GateState"
+        duration_ms:
+          type: [integer, "null"]
+        pr:
+          anyOf:
+            - type: "null"
+            - type: object
+              additionalProperties: false
+              required: [number, url]
+              properties:
+                number:
+                  type: integer
+                url:
+                  type: [string, "null"]
+        ci_url:
+          type: [string, "null"]
+        url:
+          type: string
+          format: uri
+        created_at:
+          $ref: "#/components/schemas/Time"
+    Build:
+      allOf:
+        - $ref: "#/components/schemas/BuildFields"
+      unevaluatedProperties: false
+    Failure:
+      type: object
+      additionalProperties: false
+      required: [test_case_id, full_name, file_path, line_number, status, exception_class, message, error_group_id, attempts, app_frame]
+      properties:
+        test_case_id:
+          type: integer
+        full_name:
+          type: string
+        file_path:
+          type: string
+        line_number:
+          type: [integer, "null"]
+        status:
+          type: string
+          enum: [failed, quarantined]
+        exception_class:
+          type: [string, "null"]
+        message:
+          type: [string, "null"]
+          maxLength: 1000
+        error_group_id:
+          type: [integer, "null"]
+        attempts:
+          type: integer
+        app_frame:
+          type: [string, "null"]
+    Shard:
+      type: object
+      additionalProperties: false
+      required: [index, total, label, status, counts]
+      properties:
+        index:
+          type: [integer, "null"]
+        total:
+          type: [integer, "null"]
+        label:
+          type: [string, "null"]
+        status:
+          type: string
+        counts:
+          $ref: "#/components/schemas/Counts"
+    BuildDetail:
+      allOf:
+        - $ref: "#/components/schemas/BuildFields"
+      required: [gate, comparison, failures, shards, results_purged]
+      properties:
+        gate:
+          type: object
+          additionalProperties: false
+          required: [state, rules]
+          properties:
+            state:
+              $ref: "#/components/schemas/GateState"
+            rules:
+              type: array
+              items:
+                type: object
+                additionalProperties: false
+                required: [rule, outcome, detail]
+                properties:
+                  rule:
+                    type: string
+                    enum: [pass_rate, new_failures, new_flaky]
+                  outcome:
+                    type: string
+                    enum: [passed, failed, skipped]
+                  detail:
+                    type: string
+        comparison:
+          type: object
+          additionalProperties: false
+          required: [available, baseline_build_id, branch, counts, new_failure_test_ids, still_failing_test_ids]
+          properties:
+            available:
+              type: boolean
+            baseline_build_id:
+              type: [integer, "null"]
+            branch:
+              type: [string, "null"]
+            counts:
+              anyOf:
+                - type: "null"
+                - type: object
+                  additionalProperties: false
+                  required: [new_failures, still_failing, fixed, new_tests]
+                  properties:
+                    new_failures:
+                      type: integer
+                    still_failing:
+                      type: integer
+                    fixed:
+                      type: integer
+                    new_tests:
+                      type: integer
+            new_failure_test_ids:
+              anyOf:
+                - type: "null"
+                - type: array
+                  maxItems: 100
+                  items:
+                    type: integer
+            still_failing_test_ids:
+              anyOf:
+                - type: "null"
+                - type: array
+                  maxItems: 100
+                  items:
+                    type: integer
+        failures:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/Failure"
+        shards:
+          type: array
+          items:
+            $ref: "#/components/schemas/Shard"
+        results_purged:
+          type: boolean
+      unevaluatedProperties: false
+    ProjectDetail:
+      allOf:
+        - $ref: "#/components/schemas/ProjectFields"
+      required: [health]
+      properties:
+        health:
+          type: object
+          additionalProperties: false
+          required: [builds, pass_rate, flaky_count, quarantined_count, top_error_groups, recent_builds]
+          properties:
+            builds:
+              type: integer
+              minimum: 0
+            pass_rate:
+              $ref: "#/components/schemas/Percent"
+            flaky_count:
+              type: integer
+              minimum: 0
+            quarantined_count:
+              type: integer
+              minimum: 0
+            top_error_groups:
+              type: array
+              maxItems: 5
+              items:
+                type: object
+                additionalProperties: false
+                required: [id, exception_class, sample_message, affected_tests]
+                properties:
+                  id:
+                    type: integer
+                  exception_class:
+                    type: string
+                  sample_message:
+                    type: [string, "null"]
+                    maxLength: 300
+                  affected_tests:
+                    type: integer
+                    minimum: 1
+            recent_builds:
+              type: array
+              maxItems: 10
+              items:
+                $ref: "#/components/schemas/Build"
+      unevaluatedProperties: false
+    TestFields:
+      type: object
+      required: [id, full_name, file_path, line_number, last_status, pass_rate, failures, avg_duration_ms, last_run_at, flaky, quarantined]
+      properties:
+        id:
+          type: integer
+        full_name:
+          type: string
+        file_path:
+          type: string
+        line_number:
+          type: [integer, "null"]
+        last_status:
+          type: [string, "null"]
+        pass_rate:
+          $ref: "#/components/schemas/Percent"
+        failures:
+          type: integer
+          minimum: 0
+        avg_duration_ms:
+          type: [integer, "null"]
+        last_run_at:
+          $ref: "#/components/schemas/NullableTime"
+        flaky:
+          type: boolean
+        quarantined:
+          type: boolean
+    Test:
+      allOf:
+        - $ref: "#/components/schemas/TestFields"
+      unevaluatedProperties: false
+    TestsMeta:
+      type: object
+      additionalProperties: false
+      required: [page, per_page, total, next_page, query, notices]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        per_page:
+          type: integer
+          minimum: 1
+          maximum: 100
+        total:
+          type: integer
+          minimum: 0
+        next_page:
+          type: [integer, "null"]
+        query:
+          type: string
+          description: The query as Explore understood it (canonical form)
+        notices:
+          type: array
+          items:
+            type: string
+    TestDetail:
+      allOf:
+        - $ref: "#/components/schemas/TestFields"
+      required: [results, verdicts, quarantine, quarantine_events]
+      properties:
+        results:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [build_id, run_id, branch, status, duration_ms, message, created_at]
+            properties:
+              build_id:
+                type: integer
+              run_id:
+                type: integer
+              branch:
+                type: [string, "null"]
+              status:
+                type: string
+              duration_ms:
+                type: integer
+              message:
+                type: [string, "null"]
+                maxLength: 300
+              created_at:
+                $ref: "#/components/schemas/Time"
+        verdicts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [branch, flaky, flaky_reason, flip_rate, sample_count]
+            properties:
+              branch:
+                type: string
+              flaky:
+                type: boolean
+              flaky_reason:
+                type: [string, "null"]
+              flip_rate:
+                type: [number, "null"]
+              sample_count:
+                type: integer
+        quarantine:
+          anyOf:
+            - type: "null"
+            - type: object
+              additionalProperties: false
+              required: [reason, expires_at, quarantined_by]
+              properties:
+                reason:
+                  type: string
+                expires_at:
+                  $ref: "#/components/schemas/Time"
+                quarantined_by:
+                  type: [string, "null"]
+        quarantine_events:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [action, note, actor, created_at]
+            properties:
+              action:
+                type: string
+                enum: [quarantined, extended, released, expired]
+              note:
+                type: [string, "null"]
+              actor:
+                type: [string, "null"]
+              created_at:
+                $ref: "#/components/schemas/Time"
+      unevaluatedProperties: false
+    ErrorGroupFields:
+      type: object
+      required: [id, exception_class, sample_message, frame, first_seen_at, last_seen_at, affected_tests]
+      properties:
+        id:
+          type: integer
+        exception_class:
+          type: string
+        sample_message:
+          type: [string, "null"]
+          maxLength: 300
+        frame:
+          type: string
+        first_seen_at:
+          $ref: "#/components/schemas/Time"
+        last_seen_at:
+          $ref: "#/components/schemas/Time"
+        affected_tests:
+          type: integer
+          minimum: 0
+    ErrorGroup:
+      allOf:
+        - $ref: "#/components/schemas/ErrorGroupFields"
+      unevaluatedProperties: false
+    ErrorGroupDetail:
+      allOf:
+        - $ref: "#/components/schemas/ErrorGroupFields"
+      required: [tests]
+      properties:
+        tests:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [test_case_id, full_name, file_path, last_seen_at]
+            properties:
+              test_case_id:
+                type: integer
+              full_name:
+                type: string
+              file_path:
+                type: string
+              last_seen_at:
+                $ref: "#/components/schemas/Time"
+      unevaluatedProperties: false
+    FlakyTest:
+      type: object
+      additionalProperties: false
+      required: [test_case_id, full_name, file_path, flip_rate, flaky_reason, sample_count, flaky_since_build_id]
+      properties:
+        test_case_id:
+          type: integer
+        full_name:
+          type: string
+        file_path:
+          type: string
+        flip_rate:
+          type: [number, "null"]
+        flaky_reason:
+          type: [string, "null"]
+        sample_count:
+          type: integer
+        flaky_since_build_id:
+          type: [integer, "null"]
+    Quarantine:
+      type: object
+      additionalProperties: false
+      required: [test_case_id, full_name, reason, expires_at, quarantined_by, created_at]
+      properties:
+        test_case_id:
+          type: integer
+        full_name:
+          type: string
+        reason:
+          type: string
+        expires_at:
+          $ref: "#/components/schemas/Time"
+        quarantined_by:
+          type: [string, "null"]
+        created_at:
+          $ref: "#/components/schemas/Time"

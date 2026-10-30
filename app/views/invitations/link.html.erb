@@ -1,0 +1,13 @@
+<% content_for :title, "Invitation link · Raider Hideout" %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+<% end %>
+<h1 class="text-2xl font-semibold mb-6">Invitation for <%= @invitation.email %></h1>
+<%= panel(extra: "space-y-4") do %>
+  <p class="text-neutral-dk">This server sends no email. Copy the link and send it to <%= @invitation.email %> yourself. It is shown only now and works once, until <%= @invitation.expires_at.to_date.to_fs(:long) %>.</p>
+  <div data-controller="clipboard" class="flex gap-3">
+    <code data-clipboard-target="source" class="flex-1 rounded-md bg-neutral-lt px-4 py-2.5 font-mono text-sm break-all"><%= @accept_url %></code>
+    <button type="button" data-action="clipboard#copy" class="<%= button_classes(:secondary, extra: 'min-w-0') %>">Copy</button>
+  </div>
+  <%= link_to "Back to members", organization_memberships_path(@organization), class: button_classes(:outline) %>
+<% end %>

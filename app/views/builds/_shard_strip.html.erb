@@ -1,0 +1,8 @@
+<div class="mb-6 flex flex-wrap gap-2">
+  <% runs.each do |run| %>
+    <%= link_to project_run_path(project, run), class: "inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-bdr bg-neutral-wh text-sm hover:shadow-card-hover" do %>
+      <%= status_pill(run.status) %>
+      <span><%= run.shard_label.presence || "Run ##{run.id}" %></span>
+    <% end %>
+  <% end %>
+</div>

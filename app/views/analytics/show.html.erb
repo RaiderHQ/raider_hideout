@@ -1,0 +1,32 @@
+<% content_for :title, "#{current_project.name} · Analytics · Raider Hideout" %>
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Analytics</h1>
+  <p class="text-sm text-neutral-mid mt-1" data-testid="analytics-scope"><%= @filter.branch %> · last <%= @filter.days %> days</p>
+</div>
+
+<div class="space-y-6">
+  <div class="space-y-2">
+    <%= form_with url: project_analytics_path(current_project), method: :get, class: "flex gap-2", data: { testid: "analytics-query" } do |f| %>
+      <%= f.search_field :q, value: @filter.to_query, maxlength: Search::Filter::MAX_QUERY, aria: { label: "Analytics filter" },
+            placeholder: "branch:main tag:smoke file:spec/models since:7d", class: "flex-1 min-w-0 rounded-md border border-neutral-bdr px-3 py-2 text-sm font-mono" %>
+      <%= f.submit "Apply", name: nil, class: button_classes(:primary) %>
+    <% end %>
+    <p class="text-xs text-neutral-mid"><code>branch:</code> <code>tag:</code> (repeat for all of) <code>file:</code> <code>since:7d|30d|90d</code></p>
+    <% if @filter.notices.any? %>
+      <ul class="rounded-md bg-ruby-sub px-4 py-3 text-sm text-neutral-dark space-y-1" data-testid="analytics-notices">
+        <% @filter.notices.each do |notice| %><li><%= notice %></li><% end %>
+      </ul>
+    <% end %>
+  </div>
+
+  <%= render "analytics/headline" %>
+
+  <div class="grid gap-6 lg:grid-cols-2">
+    <%= render "analytics/failing" %>
+    <%= render "analytics/slowest" %>
+    <%= render "analytics/flaky" %>
+    <%= render "analytics/files" %>
+  </div>
+
+  <%= render "analytics/trends" %>
+</div>

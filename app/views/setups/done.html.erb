@@ -1,0 +1,17 @@
+<% content_for :title, "Raider Hideout is ready" %>
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+<% end %>
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-semibold mb-6">Raider Hideout is ready</h1>
+  <%= panel(extra: "space-y-4") do %>
+    <p class="text-neutral-dk">Add these two settings to your CI secrets. The token is shown only now; Raider Hideout stores only a hash.</p>
+    <% { "RAIDER_ENDPOINT" => root_url.chomp("/"), "RAIDER_TOKEN" => @result.token }.each do |name, value| %>
+      <div data-controller="clipboard" class="flex gap-3">
+        <code data-clipboard-target="source" class="flex-1 rounded-md bg-neutral-lt px-4 py-2.5 font-mono text-sm break-all"><%= name %>=<%= value %></code>
+        <button type="button" data-action="clipboard#copy" class="<%= button_classes(:secondary, extra: 'min-w-0') %>">Copy</button>
+      </div>
+    <% end %>
+    <%= link_to "Open #{@result.project.name}", project_path(@result.project), class: button_classes(:primary) %>
+  <% end %>
+</div>

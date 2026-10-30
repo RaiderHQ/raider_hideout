@@ -1,0 +1,18 @@
+<% content_for :head do %>
+  <meta name="turbo-cache-control" content="no-cache">
+<% end %>
+<h1 class="text-2xl font-semibold mb-6">Token created</h1>
+<%= panel(extra: "space-y-4") do %>
+  <p class="text-neutral-dk">Copy it now. Raider Hideout stores only a hash, so this is the only time it is shown.</p>
+  <div data-controller="clipboard" class="flex gap-3">
+    <code data-clipboard-target="source" class="flex-1 rounded-md bg-neutral-lt px-4 py-2.5 font-mono text-sm break-all"><%= @plaintext %></code>
+    <button type="button" data-action="clipboard#copy" class="<%= button_classes(:secondary, extra: 'min-w-0') %>">Copy</button>
+  </div>
+  <p class="text-sm font-medium">GitHub Actions</p>
+  <pre class="rounded-md bg-neutral-dark text-neutral-wh p-4 text-xs overflow-x-auto"><code>- name: Run tests
+  env:
+    RAIDER_TOKEN: ${{ secrets.RAIDER_TOKEN }}
+    RAIDER_ENDPOINT: <%= root_url.chomp("/") %>
+  run: bundle exec rspec</code></pre>
+  <%= link_to "Back to tokens", project_api_tokens_path(current_project), class: button_classes(:outline) %>
+<% end %>

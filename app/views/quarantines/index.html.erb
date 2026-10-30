@@ -1,0 +1,31 @@
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Quarantine</h1>
+</div>
+<%= panel(extra: "mb-6") do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3">Active</p>
+  <% if @quarantines.empty? %>
+    <p class="text-sm text-neutral-mid">No tests are quarantined.</p>
+  <% else %>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-neutral-mid"><th class="py-1">Test</th><th>Reason</th><th>By</th><th>Until</th></tr>
+        </thead>
+        <tbody class="divide-y divide-neutral-bdr">
+          <% @quarantines.each do |quarantine| %>
+            <tr data-quarantine-row="<%= quarantine.id %>">
+              <td class="py-1.5"><%= link_to quarantine.test_case.full_name, project_test_case_path(current_project, quarantine.test_case, anchor: "quarantine"), class: "text-ruby" %></td>
+              <td><%= quarantine.reason %></td>
+              <td><%= quarantine_actor(quarantine.created_by) %></td>
+              <td class="whitespace-nowrap"><%= quarantine_date(quarantine.expires_at) %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% end %>
+<% end %>
+<%= panel do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3">Recent changes</p>
+  <%= render "quarantines/events", events: @events, show_test: true %>
+<% end %>

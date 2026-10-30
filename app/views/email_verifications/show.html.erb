@@ -1,0 +1,12 @@
+<div class="max-w-md mx-auto">
+  <%= panel do %>
+    <h1 class="text-2xl font-semibold mb-4">Check your inbox</h1>
+    <p class="text-sm text-neutral-mid mb-6">
+      We sent a verification link to <strong><%= Current.user.email_address %></strong>. It expires in 24 hours.
+    </p>
+    <div class="flex items-center gap-3">
+      <%= button_to "Resend email", verify_email_path, class: button_classes(:primary) %>
+      <%= button_to "Sign out", session_path, method: :delete, class: button_classes(:secondary) %>
+    </div>
+  <% end %>
+</div>

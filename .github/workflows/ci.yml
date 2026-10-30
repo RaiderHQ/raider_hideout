@@ -1,0 +1,184 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+env:
+  BUNDLE_WITHOUT: postgres
+
+jobs:
+  scan_ruby:
+    runs-on: ubuntu-24.04 # setup-ruby has no Ruby 4.0.5 for ubuntu-26.04 yet
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Scan for common Rails security vulnerabilities using static analysis
+        run: bin/brakeman --no-pager
+      
+      - name: Scan for known security vulnerabilities in gems used
+        run: bin/bundler-audit
+
+      - name: Check the Ruby and RubyGems versions for known vulnerabilities
+        run: bundle exec ruby-audit check
+
+  scan_js:
+    runs-on: ubuntu-24.04 # setup-ruby has no Ruby 4.0.5 for ubuntu-26.04 yet
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Scan for security vulnerabilities in JavaScript dependencies
+        run: bin/importmap audit
+
+  lint:
+    runs-on: ubuntu-24.04 # setup-ruby has no Ruby 4.0.5 for ubuntu-26.04 yet
+    env:
+      RUBOCOP_CACHE_ROOT: tmp/rubocop
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Prepare RuboCop cache
+        uses: actions/cache@v6
+        env:
+          DEPENDENCIES_HASH: ${{ hashFiles('.ruby-version', '**/.rubocop.yml', '**/.rubocop_todo.yml', 'Gemfile.lock') }}
+        with:
+          path: ${{ env.RUBOCOP_CACHE_ROOT }}
+          key: rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-${{ github.ref_name == github.event.repository.default_branch && github.run_id || 'default' }}
+          restore-keys: |
+            rubocop-${{ runner.os }}-${{ env.DEPENDENCIES_HASH }}-
+
+      - name: Lint code for consistent style
+        run: bin/rubocop -f github
+
+
+  test:
+    runs-on: ubuntu-24.04 # setup-ruby has no Ruby 4.0.5 for ubuntu-26.04 yet
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Build Tailwind CSS
+        run: bin/rails tailwindcss:build
+
+      - name: Prepare the test database
+        run: bin/rails db:test:prepare
+
+      - name: Run the specs
+        run: bundle exec rspec
+
+  boot-source:
+    runs-on: ubuntu-24.04 # setup-ruby has no Ruby 4.0.5 for ubuntu-26.04 yet
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Boot from source and run first-time setup
+        run: script/boot-check source
+
+  boot-docker:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Build the image, boot it and run first-time setup
+        run: script/boot-check docker --keep
+
+      - name: ZAP baseline scan of the running container
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: http://localhost:3010
+          rules_file_name: .zap/rules.tsv
+          cmd_options: -a
+          fail_action: true
+          allow_issue_writing: false
+
+      - name: Stop the container
+        if: always()
+        run: docker rm -f hideout-boot-check hideout-boot-check-tls; docker volume rm hideout-boot-check || true
+
+  secrets:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets (full history on main, the branch's commits on pull requests)
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            bin/scan-secrets --log-opts="origin/$BASE_REF..HEAD"
+          else
+            bin/scan-secrets
+          fi
+
+  osv:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Scan Gemfile.lock for known vulnerabilities
+        uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
+        with:
+          scan-args: |-
+            --lockfile=Gemfile.lock
+
+  licenses:
+    runs-on: ubuntu-24.04 # setup-ruby has no Ruby 4.0.5 for ubuntu-26.04 yet
+    env:
+      BUNDLE_WITHOUT: ""
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      # Installed outside the Gemfile: every license_finder release requires rubyzip < 3,
+      # which would pin selenium-webdriver's rubyzip to a version with a known advisory.
+      - name: Install license_finder
+        run: gem install license_finder --version 7.2.1 --no-document
+
+      - name: Check dependency licenses
+        run: license_finder --decisions-file doc/dependency_decisions.yml

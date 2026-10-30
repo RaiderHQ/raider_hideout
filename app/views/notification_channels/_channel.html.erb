@@ -1,0 +1,29 @@
+<% delivery = @last_deliveries[channel.id] %>
+<% rules = { "failed" => channel.on_failed, "recovered" => channel.on_recovered, "new flaky" => channel.on_new_flaky,
+             "pass rate < #{channel.pass_rate_below}%" => channel.pass_rate_below.present? }.select { |_, on| on }.keys %>
+<% filter = { "default" => "default branch", "all" => "all branches", "pattern" => "branches matching #{channel.branch_pattern}" }[channel.branch_filter] %>
+<li class="flex items-center justify-between gap-4 py-4">
+  <div class="min-w-0">
+    <p class="font-medium">
+      <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-mid mr-2"><%= { "slack" => "Slack", "teams" => "Teams", "email" => "Email" }[channel.kind] %></span>
+      <%= channel.name %>
+      <%= status_pill("disabled") unless channel.enabled? %>
+    </p>
+    <p class="text-xs text-neutral-mid"><%= filter %> · <%= rules.presence&.to_sentence || "no rules" %> · <%= channel.masked_target %></p>
+    <p class="text-xs text-neutral-mid">Last delivery:
+      <% if delivery.nil? %>never
+      <% elsif delivery.status == "sent" %>sent <%= time_ago_in_words(delivery.sent_at || delivery.updated_at) %> ago
+      <% elsif delivery.status == "failed" %>failed: <%= delivery.last_error %>
+      <% else %>pending
+      <% end %></p>
+  </div>
+  <% if role_at_least?(:member) %>
+  <div class="flex gap-2 flex-shrink-0">
+    <%= link_to "Edit", edit_project_notification_channel_path(current_project, channel), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= button_to "Send test", test_project_notification_channel_path(current_project, channel), method: :post,
+          class: button_classes(:outline, extra: "min-w-0") %>
+    <%= button_to "Delete", project_notification_channel_path(current_project, channel), method: :delete,
+          class: button_classes(:danger, extra: "min-w-0"), form: { data: { turbo_confirm: "Delete this channel?" } } %>
+  </div>
+  <% end %>
+</li>

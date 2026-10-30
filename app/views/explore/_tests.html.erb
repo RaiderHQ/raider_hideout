@@ -1,0 +1,19 @@
+<ul class="divide-y divide-neutral-bdr" data-testid="explore-tests">
+  <% @rows.each do |row| %>
+    <% kase = row.test_case %>
+    <li class="flex items-center gap-4 px-4 py-3">
+      <%= status_pill(row.latest_status) %>
+      <div class="flex-1 min-w-0">
+        <%= link_to kase.full_name, project_test_case_path(current_project, kase, branch: @branch), class: "block truncate font-medium text-ruby" %>
+        <p class="truncate font-mono text-xs text-neutral-mid"><%= [ kase.file_path, kase.line_number ].compact.join(":") %></p>
+      </div>
+      <% if row.flaky %><%= status_pill("flaky") %><% end %>
+      <dl class="hidden sm:grid grid-cols-4 gap-4 text-right text-xs text-neutral-mid">
+        <div><dt class="sr-only">Pass rate</dt><dd><%= row.pass_rate ? "#{row.pass_rate}%" : "–" %></dd></div>
+        <div><dt class="sr-only">Failures</dt><dd><%= pluralize(row.failures, "failure") %></dd></div>
+        <div><dt class="sr-only">Average duration</dt><dd><%= row.avg_duration_ms %> ms</dd></div>
+        <div><dt class="sr-only">Last run</dt><dd><%= time_ago_in_words(row.last_run_at) %> ago</dd></div>
+      </dl>
+    </li>
+  <% end %>
+</ul>

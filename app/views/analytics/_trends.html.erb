@@ -1,0 +1,22 @@
+<% points = @trend.points %>
+<% failure_rate = trend_series(points, :failure_rate) %>
+<% test_duration = trend_series(points, :avg_test_duration_ms) %>
+<% build_duration = trend_series(points, :avg_build_duration_ms) %>
+<% flaky = trend_series(points, :flaky_count) %>
+<section class="space-y-6" data-testid="analytics-trends">
+  <div class="flex items-center justify-between">
+    <h2 class="text-xs uppercase tracking-wider text-neutral-mid">Trends, <%= @trend.weekly? ? "per week" : "per day" %></h2>
+    <%= link_to "CSV", analytics_csv_path("trend"), data: { turbo: false }, class: "text-sm text-ruby hover:underline" %>
+  </div>
+  <%= render "analytics/chart", title: "Failure rate", empty: analytics_chart_empty_text(failure_rate) do %>
+    <%= line_chart failure_rate, id: "failure-rate-chart", suffix: "%", min: 0, max: 100, discrete: true, html: AnalyticsHelper::CHART_HTML %>
+  <% end %>
+  <%= render "analytics/chart", title: "Duration", empty: analytics_chart_empty_text(test_duration, build_duration) do %>
+    <%= line_chart [ { name: "Average test duration", data: test_duration }, { name: "Average build duration", data: build_duration } ],
+          id: "duration-chart", suffix: " ms", discrete: true, html: AnalyticsHelper::CHART_HTML %>
+  <% end %>
+  <%= render "analytics/chart", title: "Flaky tests", empty: analytics_chart_empty_text(flaky) do %>
+    <%= line_chart flaky, id: "flaky-chart", min: 0, discrete: true, html: AnalyticsHelper::CHART_HTML %>
+  <% end %>
+  <% if @filter.narrowed? %><p class="text-xs text-neutral-mid" data-testid="build-note"><%= AnalyticsHelper::BUILD_NOTE %></p><% end %>
+</section>

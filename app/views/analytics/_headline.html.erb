@@ -1,0 +1,16 @@
+<section data-testid="analytics-headline">
+  <% if @headline.empty? %>
+    <%= panel do %><p class="text-sm text-neutral-mid"><%= analytics_no_builds_text %></p><% end %>
+  <% else %>
+    <div class="grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <% analytics_headline_tiles(@headline).each do |label, number, value| %>
+        <%= panel do %>
+          <p class="text-xs uppercase tracking-wider text-neutral-mid"><%= label %></p>
+          <p class="text-3xl font-semibold mt-1"><%= value %></p>
+          <p class="text-xs text-neutral-mid mt-1" data-testid="headline-delta"><%= number.delta %></p>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+  <% if @filter.narrowed? %><p class="mt-2 text-xs text-neutral-mid" data-testid="build-note"><%= AnalyticsHelper::BUILD_NOTE %></p><% end %>
+</section>

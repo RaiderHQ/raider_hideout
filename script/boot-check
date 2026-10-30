@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+# Boots Raider Hideout the way docs/install describes and walks the first-run
+# path (spec 2026-10-29 §7.4). Usage: script/boot-check source|docker [--keep]
+#   source: production boot from this checkout (CI only: it writes storage/production*.sqlite3)
+#   docker: builds the image and runs it with a named volume (needs Docker);
+#           --keep leaves the container hideout-boot-check running on 127.0.0.1:3010 for the next CI step
+set -Eeuo pipefail
+cd "$(dirname "$0")/.."
+
+MODE=${1:-}
+KEEP=0; [ "${2:-}" = "--keep" ] && KEEP=1
+PORT=3010
+APP=http://localhost:$PORT
+WORK=$(mktemp -d)
+STEP=setup
+FIXTURES=deploy-check/fixtures
+
+step() { STEP="$1"; echo "==> $1"; }
+fail() { echo "boot-check ($MODE) FAILED at: $STEP${1:+ — $1}" >&2; exit 1; }
+trap 'fail' ERR
+wait_up() {
+  for _ in $(seq 1 60); do curl -fsS "$APP/up" >/dev/null 2>&1 && return 0; sleep 2; done
+  fail "no answer on /up"
+}
+token_from() { sed -n 's/^RAIDER_TOKEN=//p' | tail -n1; }
+# The redirect only applies to HTML requests, so ask for HTML explicitly.
+check_redirect() {
+  local target
+  target=$(curl -s -H 'Accept: text/html' -o /dev/null -w '%{redirect_url}' "$APP/session/new")
+  [ "$target" = "$APP/setup" ] || fail "expected a redirect to $APP/setup, got '$target'"
+}
+# Output is captured before it is searched: under pipefail, `cmd | grep -q`
+# can fail even on a match (grep exits early and the writer gets SIGPIPE).
+upload() {
+  local response
+  response=$(curl -fsS -H "Authorization: Bearer $1" -F "payload=<$FIXTURES/payload.json" \
+    -F "att_0=@$FIXTURES/shot.png;type=image/png" -F "att_1=@$FIXTURES/report.html;type=text/html" \
+    "$APP/api/v1/runs")
+  [[ $response == *'"run_id"'* ]] || fail "the upload was refused"
+}
+
+source_mode() {
+  [ -n "${CI:-}" ] || { echo "boot-check source writes storage/production*.sqlite3 here; run it in CI or a throwaway worktree with CI=1" >&2; exit 2; }
+  export RAILS_ENV=production APP_HOST="localhost:$PORT" HIDEOUT_FORCE_SSL=false SOLID_QUEUE_IN_PUMA=1
+  step "precompile assets"
+  SECRET_KEY_BASE_DUMMY=1 bin/rails assets:precompile >/dev/null
+  step "prepare the database"
+  bin/rails db:prepare
+  step "start the server"
+  bin/rails server -p "$PORT" >"$WORK/server.log" 2>&1 &
+  SERVER=$!
+  trap 'kill "$SERVER" 2>/dev/null || true; rm -rf "$WORK"' EXIT
+  wait_up
+  step "the secrets file is private"
+  mode=$(stat -c %a storage/hideout-secrets.yml 2>/dev/null || stat -f %Lp storage/hideout-secrets.yml)
+  [ "$mode" = 600 ] || fail "mode is $mode"
+  step "the setup link is in the log"
+  logs=$(cat "$WORK/server.log")
+  [[ $logs == *"/setup?code="* ]] || fail "no setup link"
+  step "pages redirect to /setup"
+  check_redirect
+  step "hideout:setup prints a token"
+  TOKEN=$(bin/rails hideout:setup EMAIL=ci@example.com ORG=CI PROJECT=Boot PASSWORD=boot-check-pass | token_from)
+  [ -n "$TOKEN" ] || fail "no token printed"
+  step "a run uploads with that token"
+  upload "$TOKEN"
+}
+
+docker_mode() {
+  IMAGE=hideout:boot-check
+  NAME=hideout-boot-check
+  VOLUME=hideout-boot-check
+  cleanup() { docker rm -f "$NAME" hideout-boot-check-tls >/dev/null 2>&1 || true; docker volume rm "$VOLUME" >/dev/null 2>&1 || true; rm -rf "$WORK"; }
+  trap '[ "$KEEP" = 1 ] || cleanup' EXIT
+  step "build the image"
+  docker build -t "$IMAGE" .
+  step "start the container"
+  cleanup
+  docker volume create "$VOLUME" >/dev/null
+  docker run -d --name "$NAME" -p "127.0.0.1:$PORT:3000" -e APP_HOST="localhost:$PORT" -e HIDEOUT_FORCE_SSL=false \
+    -e SOLID_QUEUE_IN_PUMA=1 -v "$VOLUME:/rails/storage" "$IMAGE" >/dev/null
+  wait_up
+  step "the secrets file is private"
+  mode=$(docker exec "$NAME" stat -c %a storage/hideout-secrets.yml)
+  [ "$mode" = 600 ] || fail "mode is $mode"
+  step "the setup link is in the log"
+  logs=$(docker logs "$NAME" 2>&1)
+  [[ $logs == *"/setup?code="* ]] || fail "no setup link"
+  step "pages redirect to /setup"
+  check_redirect
+  step "hideout:setup prints a token"
+  TOKEN=$(docker exec "$NAME" ./bin/rails hideout:setup EMAIL=ci@example.com ORG=CI PROJECT=Boot PASSWORD=boot-check-pass | token_from)
+  [ -n "$TOKEN" ] || fail "no token printed"
+  step "a run uploads with that token"
+  upload "$TOKEN"
+  step "secrets and data survive a restart"
+  before=$(docker exec "$NAME" sha256sum storage/hideout-secrets.yml)
+  docker restart "$NAME" >/dev/null
+  wait_up
+  [ "$(docker exec "$NAME" sha256sum storage/hideout-secrets.yml)" = "$before" ] || fail "the secrets file changed"
+  counts=$(docker exec "$NAME" ./bin/rails runner 'puts "COUNTS=#{User.count} #{Run.count}"' | sed -n 's/^COUNTS=//p')
+  [ "$counts" = "1 1" ] || fail "expected 1 user and 1 run, got '$counts'"
+  step "plain HTTP is redirected and sets no cookie with the default settings"
+  docker run -d --name hideout-boot-check-tls -p "127.0.0.1:3011:3000" -e APP_HOST=localhost:3011 \
+    -e SOLID_QUEUE_IN_PUMA=1 "$IMAGE" >/dev/null
+  for _ in $(seq 1 60); do curl -fsS http://localhost:3011/up >/dev/null 2>&1 && break; sleep 2; done
+  # Output is captured before it is searched (see upload).
+  headers=$(curl -s -D - -o /dev/null -H 'Accept: text/html' http://localhost:3011/session/new)
+  docker rm -f hideout-boot-check-tls >/dev/null
+  [[ $headers =~ HTTP/[0-9.]+\ 30[18] ]] || fail "plain HTTP was not redirected"
+  shopt -s nocasematch
+  [[ $headers == *$'\n'"location: https://localhost:3011/session/new"* ]] || fail "the redirect does not go to https"
+  [[ $headers != *$'\n'"set-cookie:"* ]] || fail "plain HTTP set a cookie"
+  shopt -u nocasematch
+}
+
+case "$MODE" in
+  source) source_mode ;;
+  docker) docker_mode ;;
+  *) echo "Usage: script/boot-check source|docker" >&2; exit 2 ;;
+esac
+echo "boot-check ($MODE) passed"

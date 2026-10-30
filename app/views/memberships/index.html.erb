@@ -1,0 +1,52 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold"><%= @organization.name %> · Members</h1>
+  <%= link_to "Back to organization", organization_path(@organization), class: button_classes(:outline) %>
+</div>
+<%= panel do %>
+  <table class="w-full text-sm">
+    <thead>
+      <tr class="text-left text-neutral-mid">
+        <th class="py-2">Member</th>
+        <th class="py-2">Role</th>
+        <th class="py-2">Joined</th>
+        <th class="py-2"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-neutral-bdr">
+      <% @memberships.each do |membership| %>
+        <% own = membership.user_id == Current.user.id %>
+        <% manageable = role_at_least?(:owner) || (role_at_least?(:admin) && membership.role != "owner") %>
+        <% roles = role_at_least?(:owner) ? Membership::ROLES : Membership::ROLES - %w[owner] %>
+        <tr id="<%= dom_id(membership) %>">
+          <td class="py-3"><%= membership.user.email_address %><%= " (you)" if own %></td>
+          <td class="py-3">
+            <% if manageable %>
+              <%= form_with model: membership, url: organization_membership_path(@organization, membership), method: :patch, class: "flex gap-2" do |f| %>
+                <%= f.select :role, roles, { selected: membership.role },
+                      class: "rounded-md border border-neutral-bdr px-2 py-1", "aria-label": "Role for #{membership.user.email_address}" %>
+                <%= f.submit "Update", class: button_classes(:secondary, extra: "min-w-0") %>
+              <% end %>
+            <% else %>
+              <%= membership.role %>
+            <% end %>
+          </td>
+          <td class="py-3"><%= membership.created_at.to_date.to_fs(:long) %></td>
+          <td class="py-3 text-right">
+            <% if own && membership.user_id == @organization.personal_owner_id %>
+            <% elsif own %>
+              <%= button_to "Leave", organization_membership_path(@organization, membership), method: :delete,
+                    class: button_classes(:danger, extra: "min-w-0"), form: { data: { turbo_confirm: "Leave #{@organization.name}?" } } %>
+            <% elsif manageable %>
+              <%= button_to "Remove", organization_membership_path(@organization, membership), method: :delete,
+                    class: button_classes(:danger, extra: "min-w-0"), form: { data: { turbo_confirm: "Remove #{membership.user.email_address}?" } } %>
+            <% end %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% end %>
+<% if role_at_least?(:admin) %>
+  <%= render "invitations/form", organization: @organization %>
+  <%= render "invitations/pending", organization: @organization, invitations: @invitations %>
+<% end %>

@@ -1,0 +1,49 @@
+---
+- - :ignore_group
+  - development
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:26.021152000 Z
+- - :ignore_group
+  - test
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:26.197353000 Z
+- - :permit
+  - MIT
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:26.367430000 Z
+- - :permit
+  - Apache 2.0
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:26.652900000 Z
+- - :permit
+  - New BSD
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:26.872498000 Z
+- - :permit
+  - Simplified BSD
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:27.089402000 Z
+- - :permit
+  - ISC
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:27.306862000 Z
+- - :permit
+  - ruby
+  - :who:
+    :why:
+    :versions: []
+    :when: 2026-10-29 20:53:27.524424000 Z

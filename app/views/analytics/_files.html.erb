@@ -1,0 +1,31 @@
+<%= panel(padding: "p-4") do %>
+  <section data-testid="analytics-files">
+    <%= render "analytics/list_header", title: "Spec files", list: "files", explore_path: analytics_explore_path %>
+    <% if (empty = analytics_empty_text(@files)) %>
+      <p class="text-sm text-neutral-mid"><%= empty %></p>
+    <% else %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-mid">
+              <th class="py-1">File</th><th class="text-right">Tests</th><th class="text-right">Executed</th>
+              <th class="text-right">Failures</th><th class="text-right">Failure rate</th><th class="text-right">Total time</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-bdr">
+            <% @files.each do |row| %>
+              <tr>
+                <td class="py-1.5 pr-2"><%= link_to row.file_path, analytics_path_for(@filter.to_query(file: row.file_path)), class: "font-mono text-xs text-ruby" %></td>
+                <td class="text-right"><%= row.tests %></td>
+                <td class="text-right"><%= row.executed %></td>
+                <td class="text-right"><%= row.failures %></td>
+                <td class="text-right"><%= analytics_rate(row.failure_rate) %></td>
+                <td class="text-right"><%= analytics_duration(row.total_duration_ms) %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+<% end %>

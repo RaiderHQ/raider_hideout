@@ -1,0 +1,27 @@
+<% if events.empty? %>
+  <p class="text-sm text-neutral-mid">No quarantine changes yet.</p>
+<% else %>
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-neutral-mid">
+          <th class="py-1">When</th><% if show_test %><th>Test</th><% end %><th>Action</th><th>By</th><th>Until</th><th>Note</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-bdr">
+        <% events.each do |event| %>
+          <tr data-quarantine-event="<%= event.action %>">
+            <td class="py-1.5 whitespace-nowrap"><%= l(event.created_at, format: :short) %></td>
+            <% if show_test %>
+              <td><%= link_to event.quarantine.test_case.full_name, project_test_case_path(current_project, event.quarantine.test_case), class: "text-ruby" %></td>
+            <% end %>
+            <td><%= event.action %></td>
+            <td><%= quarantine_event_actor(event) %></td>
+            <td class="whitespace-nowrap"><%= quarantine_date(event.expires_at) %></td>
+            <td><%= event.note %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>

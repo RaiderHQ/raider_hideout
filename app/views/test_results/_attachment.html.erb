@@ -1,0 +1,13 @@
+<figure class="space-y-1">
+  <% if attachment.content_type.to_s.start_with?("image/") %>
+    <img src="<%= attachment_path(attachment) %>" alt="<%= result.attachment_name(attachment) %>"
+         data-action="click->lightbox#open"
+         class="h-32 rounded-sm border border-neutral-bdr cursor-zoom-in hover:shadow-card-hover">
+  <% elsif attachment.content_type.to_s.start_with?("video/") %>
+    <video controls preload="metadata" src="<%= attachment_path(attachment) %>" class="h-48 rounded-sm"></video>
+  <% else %>
+    <%= link_to result.attachment_name(attachment), attachment_path(attachment, disposition: "attachment"), class: "text-sm text-ruby",
+                      data: { turbo: false, turbo_prefetch: false } %>
+  <% end %>
+  <figcaption class="text-xs text-neutral-mid"><%= result.attachment_name(attachment) %></figcaption>
+</figure>

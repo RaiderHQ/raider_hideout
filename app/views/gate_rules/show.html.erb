@@ -1,0 +1,28 @@
+<% admin = role_at_least?(:admin) %>
+<% input = "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+<div class="max-w-xl">
+  <p class="text-sm text-neutral-mid mb-2"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Gate</p>
+  <%= panel do %>
+    <h1 class="text-xl font-semibold mb-1">Quality gate</h1>
+    <p class="text-sm text-neutral-mid mb-4">Each build gets one verdict once every shard is in. <code class="font-mono">raider-reporter gate</code> fails the CI job when the gate fails. Rules that are off are not checked.</p>
+    <% unless admin %>
+      <p class="rounded-md bg-neutral-lt text-neutral-dk text-sm px-4 py-3 mb-4" data-testid="gate-admin-only">Only admins can change gate rules</p>
+    <% end %>
+    <%= form_with model: @gate_rule, scope: :gate_rule, url: project_gate_path(current_project), method: :patch, class: "space-y-4" do |f| %>
+      <% if @gate_rule.errors.any? %>
+        <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3"><%= @gate_rule.errors.full_messages.to_sentence %></div>
+      <% end %>
+      <div>
+        <%= f.label :min_pass_rate, "Minimum pass rate (%)", class: "block text-sm font-medium mb-1" %>
+        <%= f.number_field :min_pass_rate, min: 1, max: 100, step: 1, placeholder: "Off", disabled: !admin, class: input %>
+        <p class="text-xs text-neutral-mid mt-1">passed ÷ (passed + failed); quarantined tests are ignored</p>
+      </div>
+      <label class="flex items-center gap-2 text-sm"><%= f.check_box :no_new_failures, disabled: !admin %> No new failures vs the default branch</label>
+      <label class="flex items-center gap-2 text-sm"><%= f.check_box :no_new_flaky, disabled: !admin %> No new flaky tests</label>
+      <%= f.submit "Save gate rules", disabled: !admin, class: button_classes(:primary, disabled: !admin) %>
+    <% end %>
+    <% if @gate_rule.persisted? %>
+      <p class="text-xs text-neutral-mid mt-4" data-testid="gate-last-changed">Last changed <%= @gate_rule.updated_at.strftime("%B %-d, %Y") %> by <%= @gate_rule.updated_by&.email_address || "a former member" %></p>
+    <% end %>
+  <% end %>
+</div>

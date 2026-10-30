@@ -1,0 +1,10 @@
+<details class="text-sm">
+  <summary class="cursor-pointer text-ruby">Syntax</summary>
+  <div class="mt-2 rounded-md border border-neutral-bdr p-3 space-y-1 text-neutral-dark">
+    <p>Words and <code>"quoted phrases"</code> match test names and files; on Results, error text too.</p>
+    <p><code>name:</code> <code>file:</code> <code>error:"Timeout"</code> <code>status:failed,quarantined</code>
+       <code>branch:main</code> <code>tag:smoke</code> (repeat for all of) <code>is:flaky</code> <code>is:quarantined</code>
+       <code>since:24h|7d|30d|90d</code> <code>sort:failures|recent|duration|name</code></p>
+    <p>Example: <code>status:failed tag:smoke error:"Net::ReadTimeout" since:30d</code></p>
+  </div>
+</details>

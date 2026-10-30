@@ -1,0 +1,8 @@
+<% content_for :title, "Set up Raider Hideout" %>
+<div class="max-w-md mx-auto">
+  <%= panel do %>
+    <h1 class="text-2xl font-semibold mb-4">This server isn't set up yet</h1>
+    <p class="text-neutral-dk">Open the setup link printed in the server log. It ends in <code class="font-mono text-sm">/setup?code=XXXX-XXXX</code>.</p>
+    <p class="text-sm text-neutral-mid mt-4">With Docker: <code class="font-mono">docker compose logs web</code>. From source: the output of <code class="font-mono">bin/rails server</code>. Or run <code class="font-mono">bin/rails hideout:setup</code> on the server.</p>
+  <% end %>
+</div>

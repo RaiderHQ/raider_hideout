@@ -1,0 +1,59 @@
+<% input = "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+<% url = channel.persisted? ? project_notification_channel_path(current_project, channel) : project_notification_channels_path(current_project) %>
+<%= form_with model: channel, scope: :notification_channel, url: url, class: "space-y-4" do |f| %>
+  <% if channel.errors.any? %>
+    <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3"><%= channel.errors.full_messages.to_sentence %></div>
+  <% end %>
+  <% unless channel.persisted? %>
+    <%= f.hidden_field :kind %>
+  <% end %>
+  <div>
+    <%= f.label :name, "Name", class: "block text-sm font-medium mb-1" %>
+    <%= f.text_field :name, required: true, autofocus: true, placeholder: "e.g. #qa-alerts", class: input %>
+  </div>
+  <% if channel.kind == "email" %>
+    <div>
+      <%= f.label :recipients, "Recipients (one per line or comma separated)", class: "block text-sm font-medium mb-1" %>
+      <%= f.text_area :recipients, rows: 4, class: input %>
+    </div>
+    <label class="flex items-center gap-2 text-sm"><%= f.check_box :include_owner %> Also send to the organization's owners and admins</label>
+  <% elsif channel.kind %>
+    <div>
+      <%= f.label :webhook_url, "Webhook URL", class: "block text-sm font-medium mb-1" %>
+      <%= f.password_field :webhook_url, value: nil, autocomplete: "off", class: input,
+            placeholder: channel.kind == "slack" ? "https://hooks.slack.com/services/…" : "Paste the Teams Workflows webhook URL" %>
+      <% if channel.persisted? && channel.webhook_url_was.present? %>
+        <p class="text-xs text-neutral-mid mt-1">Leave blank to keep the current URL (<%= @stored_target %>)</p>
+      <% end %>
+      <p class="text-xs text-neutral-mid mt-1">
+        <% if channel.kind == "slack" %>
+          Create one in <%= link_to "Slack's incoming webhooks guide", "https://api.slack.com/messaging/webhooks", class: "text-ruby underline", target: "_blank", rel: "noopener" %>.
+        <% else %>
+          In Teams, use the Workflows template "Post to a channel when a webhook request is received".
+        <% end %>
+      </p>
+    </div>
+  <% end %>
+  <label class="flex items-center gap-2 text-sm"><%= f.check_box :enabled %> Enabled</label>
+  <fieldset>
+    <legend class="text-sm font-medium mb-1">Branches</legend>
+    <% { "default" => "Default branch only", "all" => "All branches", "pattern" => "Branches matching a pattern" }.each do |value, label| %>
+      <label class="flex items-center gap-2 text-sm"><%= f.radio_button :branch_filter, value %> <%= label %></label>
+    <% end %>
+    <%= f.text_field :branch_pattern, placeholder: "e.g. release/*", class: "#{input} mt-2" %>
+  </fieldset>
+  <fieldset>
+    <legend class="text-sm font-medium mb-1">Notify when</legend>
+    <label class="flex items-center gap-2 text-sm"><%= f.check_box :on_failed %> A build fails</label>
+    <label class="flex items-center gap-2 text-sm"><%= f.check_box :on_recovered %> A build recovers</label>
+    <label class="flex items-center gap-2 text-sm"><%= f.check_box :on_new_flaky %> New flaky tests appear</label>
+    <div class="mt-2">
+      <%= f.label :pass_rate_below, "Pass rate below (%, optional)", class: "block text-sm mb-1" %>
+      <%= f.number_field :pass_rate_below, min: 1, max: 100, class: input %>
+    </div>
+  </fieldset>
+  <div class="flex gap-3">
+    <%= f.submit submit, class: button_classes(:primary) %>
+    <%= link_to "Cancel", project_notification_channels_path(current_project), class: button_classes(:secondary) %>
+  </div>
+<% end %>

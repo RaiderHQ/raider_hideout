@@ -1,0 +1,15 @@
+<h2><%= @message.title %></h2>
+<p><%= @message.summary %></p>
+<% if @message.branch.present? %><p><strong>Branch:</strong> <%= @message.branch %></p><% end %>
+<% if @message.commit.present? %><p><strong>Commit:</strong> <%= @message.commit %></p><% end %>
+<% if @message.pass_rate %><p><strong>Pass rate:</strong> <%= @message.pass_rate %>%</p><% end %>
+<% if @message.failures.any? %>
+  <h3>Failures</h3>
+  <ul><% @message.failures.each do |failure| %><li><%= failure %></li><% end %></ul>
+<% end %>
+<% if @message.new_flaky.any? %>
+  <h3>New flaky tests</h3>
+  <ul><% @message.new_flaky.each do |name| %><li><%= name %></li><% end %></ul>
+<% end %>
+<p><%= link_to "View build", @message.build_url %></p>
+<% if @message.pr_url.present? %><p><%= link_to "Pull request", @message.pr_url %></p><% end %>

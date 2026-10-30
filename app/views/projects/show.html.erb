@@ -1,0 +1,51 @@
+<%= turbo_stream_from @project, :builds, channel: ProjectStreamsChannel %>
+<nav class="text-sm text-neutral-mid mb-2" aria-label="Breadcrumb">
+  <%= link_to @project.organization.name, organization_path(@project.organization), class: "hover:text-ruby" %> / <%= @project.name %>
+</nav>
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold"><%= @project.name %></h1>
+  <div class="flex gap-3">
+    <%= link_to "Builds", project_builds_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Flaky tests", project_flaky_tests_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Quarantine", project_quarantined_tests_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Explore", project_explore_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Analytics", project_analytics_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Errors", project_errors_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Notifications", project_notification_channels_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "Gate", project_gate_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <%= link_to "API tokens", project_api_tokens_path(@project), class: button_classes(:outline, extra: "min-w-0") %>
+    <% if role_at_least?(:admin) %>
+      <%= button_to "Delete project", project_path(@project), method: :delete, class: button_classes(:danger, extra: "min-w-0"),
+            form: { data: { turbo_confirm: "Delete #{@project.name} and all its builds, runs and tokens?" } } %>
+    <% end %>
+  </div>
+</div>
+<% builds = @project.recent_builds.to_a %>
+<% rate = @project.average_pass_rate(builds) %>
+<% duration = @project.average_duration_ms(builds) %>
+<div class="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
+  <% [["Pass rate", rate ? "#{rate}%" : "–"], ["Builds", @project.builds.count], ["Flaky", @project.flaky_count],
+      ["Avg duration", duration ? "#{(duration / 1000.0).round(1)}s" : "–"]].each do |label, value| %>
+    <%= panel do %>
+      <p class="text-xs uppercase tracking-wider text-neutral-mid"><%= label %></p>
+      <p class="text-3xl font-semibold mt-1"><%= value %></p>
+    <% end %>
+  <% end %>
+</div>
+<% if builds.any? %>
+  <%= panel(extra: "mb-6") do %>
+    <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3">Pass rate, last <%= pluralize(builds.size, "build") %></p>
+    <%= line_chart builds.reverse.map { |b| ["##{b.id}", b.pass_rate] }, suffix: "%", min: 0, max: 100, html: %(<div id="%{id}" class="h-[240px] w-full text-center leading-[240px] text-sm text-neutral-mid">%{loading}</div>) %>
+  <% end %>
+<% end %>
+<%= panel(padding: "p-2") do %>
+  <div id="builds" class="divide-y divide-neutral-bdr">
+    <%= render partial: "builds/build", collection: builds.first(5), as: :build %>
+    <% if builds.empty? %>
+      <p class="hidden only:block p-4 text-neutral-dk">No builds yet. Create a token, add <code class="font-mono">raider_reporter</code> to your suite, and run it in CI.</p>
+    <% end %>
+  </div>
+  <% if builds.empty? %>
+    <div class="px-4 pb-4"><%= link_to "API tokens", project_api_tokens_path(@project), class: button_classes(:primary) %></div>
+  <% end %>
+<% end %>

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "client_run_id": "6f0c1b9e-0d2c-4c55-9f43-2a1d7c0e9b11",
+  "run": {
+    "started_at": "2026-10-22T12:00:00Z", "finished_at": "2026-10-22T12:00:05Z",
+    "ci": { "provider": "github_actions", "build_url": "https://ci.example.com/1", "build_id": "1" },
+    "git": { "branch": "main", "commit_sha": "abc123", "commit_message": "Deploy check" },
+    "environment": { "ruby": "4.0.2" }
+  },
+  "results": [
+    { "identifier": "./spec/login_spec.rb[1:1]", "full_name": "Login shows the dashboard", "file_path": "spec/login_spec.rb",
+      "line_number": 3, "status": "passed", "duration_ms": 120, "attempts": 1, "tags": [ "smoke" ],
+      "attachments": [ { "part": "att_0", "name": "screenshot", "content_type": "image/png" },
+                       { "part": "att_1", "name": "report", "content_type": "text/html" } ] }
+  ]
+}

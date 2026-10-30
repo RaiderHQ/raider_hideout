@@ -1,0 +1,12 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold">Organizations</h1>
+  <%= link_to "New organization", new_organization_path, class: button_classes(:primary) %>
+</div>
+<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+  <% @organizations.each do |organization| %>
+    <%= link_to organization_path(organization), class: "block bg-neutral-wh rounded-lg shadow-card border border-neutral-bdr p-6 transition-all duration-200 hover:shadow-card-hover hover:-translate-y-px" do %>
+      <h2 class="font-semibold text-lg"><%= organization.name %></h2>
+      <p class="text-sm text-neutral-dk mt-1"><%= @memberships[organization.id]&.role %><%= " · personal" if organization.personal? %></p>
+    <% end %>
+  <% end %>
+</div>

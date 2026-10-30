@@ -1,0 +1,22 @@
+<div class="max-w-md mx-auto">
+  <%= panel do %>
+    <h1 class="text-2xl font-semibold mb-6">Create your Raider Hideout account</h1>
+    <%= form_with model: @user, url: registration_path, class: "space-y-4" do |f| %>
+      <% if @user.errors.any? %>
+        <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3"><%= @user.errors.full_messages.to_sentence %></div>
+      <% end %>
+      <% if @invitation %>
+        <p class="text-sm text-neutral-dk">You're joining <%= @invitation.organization.name %>. Sign up with the invited email address.</p>
+      <% end %>
+      <%= f.email_field :email_address, required: true, autofocus: @invitation.nil?, placeholder: "Email",
+            readonly: @invitation.present?, value: @invitation&.email || @user.email_address,
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none#{' bg-neutral-lt text-neutral-mid' if @invitation}" %>
+      <%= f.password_field :password, required: true, placeholder: "Password (8+ characters)",
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+      <%= f.password_field :password_confirmation, required: true, placeholder: "Confirm password",
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+      <%= f.submit "Sign up", class: button_classes(:primary, extra: "w-full") %>
+    <% end %>
+    <p class="mt-4 text-sm text-neutral-mid">Have an account? <%= link_to "Sign in", new_session_path, class: "text-ruby" %></p>
+  <% end %>
+</div>

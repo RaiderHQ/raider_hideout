@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Runs this app's suite and uploads the results to a local dev server (bin/dev must be running).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source dev-env.sh
+TOKEN=$(bin/rails runner '
+  user = User.find_or_create_by!(email_address: "dogfood@raider.test") { |u| u.password = "password123" }
+  project = user.projects.find_by(name: "raider_saas") || user.projects.create!(name: "raider_saas")
+  print ApiToken.issue!(project: project, name: "dogfood #{Time.now.to_i}").last
+')
+RAIDER_TOKEN="$TOKEN" RAIDER_ENDPOINT="${RAIDER_ENDPOINT:-http://localhost:3000}" bundle exec rspec "$@" || true

@@ -1,0 +1,46 @@
+<% mine, others = @views.partition { |view| view.user_id == Current.user.id } %>
+<%= panel(padding: "p-4") do %>
+  <% if @view %>
+    <p class="text-xs uppercase tracking-wider text-neutral-mid">Open view</p>
+    <p class="font-medium"><%= @view.name %><% if @modified %> <span class="text-xs text-ruby">Modified</span><% end %></p>
+    <% if @view.editable_by?(Current.user, current_role) %>
+      <%= form_with url: project_saved_view_path(current_project, @view), method: :patch, scope: :saved_view, namespace: "edit_view", class: "mt-2 space-y-2" do |f| %>
+        <%= f.hidden_field :level, value: @level %>
+        <%= f.hidden_field :q, value: @filter.to_query %>
+        <%= f.text_field :name, value: @view.name, maxlength: 80, aria: { label: "View name" }, class: ExploreHelper::FIELD_CLASSES %>
+        <% if role_at_least?(:member) %>
+          <label class="flex items-center gap-1 text-sm"><%= f.check_box :shared, checked: @view.shared? %> Shared with the project</label>
+        <% end %>
+        <%= f.submit "Save", class: button_classes(:secondary) %>
+      <% end %>
+      <%= button_to "Delete view", project_saved_view_path(current_project, @view), method: :delete, class: "mt-2 text-sm text-status-err" %>
+    <% end %>
+  <% end %>
+
+  <%= form_with url: project_saved_views_path(current_project), scope: :saved_view, namespace: "new_view", class: "#{'mt-4 ' if @view}space-y-2", data: { testid: "save-view" } do |f| %>
+    <p class="text-xs uppercase tracking-wider text-neutral-mid"><%= @view ? "Save as new" : "Save this search" %></p>
+    <%= f.hidden_field :level, value: @level %>
+    <%= f.hidden_field :q, value: @filter.to_query %>
+    <%= f.text_field :name, value: nil, maxlength: 80, placeholder: "New view name", class: ExploreHelper::FIELD_CLASSES %>
+    <% if role_at_least?(:member) %>
+      <label class="flex items-center gap-1 text-sm"><%= f.check_box :shared %> Share with the project</label>
+    <% end %>
+    <%= f.submit "Save view", class: button_classes(:primary) %>
+  <% end %>
+<% end %>
+
+<% [ [ "My views", mine ], [ "Shared with the project", others ] ].each do |title, views| %>
+  <% next if views.empty? %>
+  <%= panel(padding: "p-4") do %>
+    <p class="text-xs uppercase tracking-wider text-neutral-mid mb-2"><%= title %></p>
+    <ul class="space-y-1 text-sm">
+      <% views.each do |view| %>
+        <li>
+          <%= link_to view.name, project_explore_path(current_project, view: view.id),
+                class: (view == @view ? "font-semibold text-ruby" : "text-neutral-dark hover:text-ruby") %>
+          <% if view.shared? && title == "My views" %><span class="text-xs text-neutral-mid">· shared</span><% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+<% end %>

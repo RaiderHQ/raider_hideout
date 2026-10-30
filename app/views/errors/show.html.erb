@@ -1,0 +1,49 @@
+<div class="mb-6">
+  <p class="text-sm text-neutral-mid"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> ·
+    <%= link_to "Errors", project_errors_path(current_project), class: "hover:text-ruby" %></p>
+  <h1 class="text-2xl font-semibold"><%= @group.exception_class %></h1>
+  <p class="text-neutral-dark"><%= @group.normalized_message %></p>
+  <% if @group.frame.present? %><p class="font-mono text-xs text-neutral-mid"><%= @group.frame %></p><% end %>
+  <p class="text-xs text-neutral-mid mt-1">First seen <%= l(@group.first_seen_at, format: :short) %> · last seen <%= l(@group.last_seen_at, format: :short) %></p>
+  <% if @group.exception_class.present? %>
+    <p class="text-sm mt-2"><%= link_to "Find results", project_explore_path(current_project, level: "results", q: Search::Filter.new(error: @group.exception_class, since: "30d").to_query), class: "text-ruby" %></p>
+  <% end %>
+</div>
+<%= panel(extra: "mb-6") do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3">Sample</p>
+  <% if @sample %>
+    <pre data-testid="sample-message" class="font-mono text-xs whitespace-pre-wrap mb-3"><%= @sample.failure_message %></pre>
+    <pre data-testid="sample-backtrace" class="font-mono text-xs whitespace-pre-wrap overflow-x-auto"><%= @sample.backtrace %></pre>
+  <% else %>
+    <p class="text-neutral-mid">No failed results.</p>
+  <% end %>
+<% end %>
+<%= panel(extra: "mb-6", padding: "p-2") do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid px-4 pt-3 pb-2">Affected tests</p>
+  <ul class="divide-y divide-neutral-bdr" data-testid="affected-tests">
+    <% @affected.each do |row| %>
+      <% kase = row[:test_case] %>
+      <li class="flex items-center gap-4 px-4 py-3">
+        <div class="flex-1 min-w-0">
+          <%= link_to kase.full_name, project_test_case_path(current_project, kase), class: "font-medium text-ruby" %>
+          <p class="font-mono text-xs text-neutral-mid"><%= kase.file_path %></p>
+        </div>
+        <span class="text-sm font-semibold"><%= pluralize(row[:failures], "failure") %></span>
+        <span class="text-xs text-neutral-mid whitespace-nowrap"><%= l(row[:last_failed], format: :short) %></span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+<%= panel(padding: "p-2") do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid px-4 pt-3 pb-2">Recent builds</p>
+  <ul class="divide-y divide-neutral-bdr" data-testid="recent-builds">
+    <% @recent_builds.each do |row| %>
+      <% build = row[:build] %>
+      <li class="flex items-center gap-4 px-4 py-3">
+        <%= link_to (build.commit_message.presence || "Build ##{build.id}"), project_build_path(current_project, build), class: "flex-1 min-w-0 truncate text-ruby" %>
+        <span class="text-xs text-neutral-mid"><%= build.branch || "no branch" %><% if build.commit_sha %> · <span class="font-mono"><%= build.commit_sha.first(7) %></span><% end %></span>
+        <span class="text-xs text-neutral-mid whitespace-nowrap"><%= l(row[:seen], format: :short) %></span>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

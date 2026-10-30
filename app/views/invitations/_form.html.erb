@@ -1,0 +1,15 @@
+<%= panel(extra: "mt-6") do %>
+  <h2 class="text-lg font-semibold mb-4">Invite someone</h2>
+  <%= form_with scope: :invitation, url: organization_invitations_path(organization), data: { turbo: false }, class: "flex flex-wrap gap-3 items-end" do |f| %>
+    <div class="flex-1 min-w-[200px]">
+      <%= f.label :email, "Email", class: "block text-sm text-neutral-mid mb-1" %>
+      <%= f.email_field :email, required: true, placeholder: "teammate@example.com",
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2 focus:border-ruby focus:outline-none" %>
+    </div>
+    <div>
+      <%= f.label :role, "Role", class: "block text-sm text-neutral-mid mb-1" %>
+      <%= f.select :role, Invitation::ROLES, { selected: "member" }, class: "rounded-md border border-neutral-bdr px-2 py-2" %>
+    </div>
+    <%= f.submit "Send invitation", class: button_classes(:primary) %>
+  <% end %>
+<% end %>

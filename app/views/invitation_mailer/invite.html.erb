@@ -1,0 +1,4 @@
+<h2>You're invited to <%= @organization.name %></h2>
+<p><%= @inviter %> invited you to join <%= @organization.name %> on Raider Hideout as <strong><%= @invitation.role %></strong>.</p>
+<p><%= link_to "Accept invitation", @accept_url %></p>
+<p>This invitation expires on <%= @invitation.expires_at.to_date.to_fs(:long) %>.</p>

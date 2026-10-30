@@ -1,0 +1,11 @@
+<% latest = project.latest_build %>
+<%= link_to project_path(project), class: "block bg-neutral-wh rounded-lg shadow-card border border-neutral-bdr p-6 transition-all duration-200 hover:shadow-card-hover hover:-translate-y-px" do %>
+  <div class="flex items-center justify-between mb-3">
+    <h2 class="font-semibold text-lg"><%= project.name %></h2>
+    <%= status_pill(latest ? latest.status : "no builds") %>
+  </div>
+  <div class="flex gap-6 text-sm text-neutral-dk">
+    <span><span class="font-semibold"><%= latest&.pass_rate ? "#{latest.pass_rate}%" : "–" %></span> pass rate</span>
+    <span><span class="font-semibold text-accent-gold"><%= project.flaky_count %></span> flaky</span>
+  </div>
+<% end %>

@@ -1,0 +1,22 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold"><%= current_project.name %> · Notifications</h1>
+  <% if role_at_least?(:member) %>
+  <div class="flex gap-3">
+    <% NotificationChannel.available_kinds.each do |kind| %>
+      <%= link_to "Add #{kind.capitalize}", new_project_notification_channel_path(current_project, kind: kind),
+            class: button_classes(kind == "slack" ? :primary : :outline, extra: "min-w-0") %>
+    <% end %>
+  </div>
+  <% end %>
+</div>
+<%= panel do %>
+  <% if @channels.empty? %>
+    <p class="text-neutral-dk">No notification channels yet. Raider Hideout can post a build summary to a
+      <strong>Slack</strong> channel (incoming webhook), a <strong>Microsoft Teams</strong> channel
+      (Workflows webhook) or send an <strong>email</strong>.</p>
+  <% else %>
+    <ul class="divide-y divide-neutral-bdr">
+      <%= render partial: "channel", collection: @channels, as: :channel %>
+    </ul>
+  <% end %>
+<% end %>

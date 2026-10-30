@@ -1,0 +1,7 @@
+<div class="flex items-center justify-between gap-4 mb-3">
+  <h2 class="text-xs uppercase tracking-wider text-neutral-mid"><%= title %></h2>
+  <div class="flex gap-3 text-sm">
+    <%= link_to "View all in Explore", explore_path, class: "text-ruby hover:underline" %>
+    <%= link_to "CSV", analytics_csv_path(list), data: { turbo: false }, class: "text-ruby hover:underline" %>
+  </div>
+</div>

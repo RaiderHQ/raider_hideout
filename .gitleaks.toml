@@ -1,0 +1,11 @@
+# gitleaks: the default rules, plus allowlists for fakes the specs need.
+# Every allowlist entry names the file and why its value is not a secret.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Active Record encryption keys committed on purpose for the development and test environments (marked 'dev/test only'; production reads them from the environment or the generated secrets file)"
+condition = "AND"
+regexTarget = "line"
+paths = ['''config/environments/(development|test)\.rb''']
+regexes = ['''encryption\.(deterministic_key|key_derivation_salt) = ".*"''']

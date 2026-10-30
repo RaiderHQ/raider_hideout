@@ -1,0 +1,22 @@
+<div class="max-w-md mx-auto">
+  <%= panel do %>
+    <h1 class="text-2xl font-semibold mb-2">Join <%= @invitation.organization.name %></h1>
+    <p class="text-neutral-dk mb-6">
+      <%= @invitation.invited_by.email_address %> invited <%= @invitation.email %> to join as <strong><%= @invitation.role %></strong>.
+    </p>
+    <% if !authenticated? %>
+      <% if @existing_user %>
+        <%= link_to "Sign in as #{@invitation.email} to accept", new_session_path, class: button_classes(:primary, extra: "w-full") %>
+      <% else %>
+        <%= link_to "Create an account as #{@invitation.email} to accept", new_registration_path, class: button_classes(:primary, extra: "w-full") %>
+      <% end %>
+    <% elsif @invitation.for?(Current.user) %>
+      <%= button_to "Accept invitation", accept_invitation_path, params: { token: params[:token] }, class: button_classes(:primary, extra: "w-full") %>
+    <% else %>
+      <p class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3 mb-4">
+        This invitation is for <%= @invitation.email %>. You are signed in as <%= Current.user.email_address %>. Sign out and use that account.
+      </p>
+      <%= button_to "Sign out", session_path, method: :delete, class: button_classes(:outline, extra: "w-full") %>
+    <% end %>
+  <% end %>
+</div>

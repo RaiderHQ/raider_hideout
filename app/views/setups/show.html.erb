@@ -1,0 +1,20 @@
+<% content_for :title, "Set up Raider Hideout" %>
+<% input = "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+<div class="max-w-md mx-auto">
+  <%= panel do %>
+    <h1 class="text-2xl font-semibold mb-2">Set up Raider Hideout</h1>
+    <p class="text-sm text-neutral-dk mb-6">Create the first admin, your team's organization and its first project. The next page shows the token for your CI.</p>
+    <%= form_with model: @setup, scope: :instance_setup, url: setup_path, class: "space-y-4", data: { turbo: false } do |f| %>
+      <%= hidden_field_tag :code, params[:code] %>
+      <% if @setup.errors.any? %>
+        <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3"><%= @setup.errors.full_messages.to_sentence %></div>
+      <% end %>
+      <%= f.email_field :email_address, required: true, autofocus: true, placeholder: "Email", autocomplete: "username", class: input %>
+      <%= f.password_field :password, required: true, placeholder: "Password (8+ characters)", autocomplete: "new-password", class: input %>
+      <%= f.password_field :password_confirmation, required: true, placeholder: "Confirm password", autocomplete: "new-password", class: input %>
+      <%= f.text_field :organization_name, required: true, maxlength: 100, placeholder: "Organization (e.g. Acme QA)", class: input %>
+      <%= f.text_field :project_name, required: true, placeholder: "First project (e.g. Checkout web)", class: input %>
+      <%= f.submit "Create admin and project", class: button_classes(:primary, extra: "w-full") %>
+    <% end %>
+  <% end %>
+</div>

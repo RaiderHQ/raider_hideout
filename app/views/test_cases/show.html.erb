@@ -1,0 +1,55 @@
+<div class="mb-6">
+  <p class="text-sm text-neutral-mid"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> ·
+    <span class="font-mono"><%= @test_case.file_path %><%= ":#{@test_case.line_number}" if @test_case.line_number %></span></p>
+  <h1 class="text-2xl font-semibold flex items-center gap-3"><%= @test_case.full_name %> <%= status_pill("flaky") if @verdict.flaky %></h1>
+  <% if @verdict.flaky %><p class="text-sm text-accent-gold mt-1"><%= @test_case.flaky_reason_text(@verdict.reason) %><%= " (on #{current_project.default_branch})" if @verdict.source == :default_branch %></p><% end %>
+</div>
+<%= render "test_cases/quarantine", test_case: @test_case, quarantine: @quarantine, events: @quarantine_events %>
+<div class="grid gap-6 sm:grid-cols-3 mb-6">
+  <%= panel do %>
+    <p class="text-xs uppercase tracking-wider text-neutral-mid">Flip rate</p>
+    <p class="text-2xl font-semibold"><%= @verdict.flip_rate ? "#{(@verdict.flip_rate * 100).round}%" : "–" %></p>
+  <% end %>
+  <%= panel(extra: "sm:col-span-2") do %>
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-xs uppercase tracking-wider text-neutral-mid">Last <%= Flakiness::Analyzer::WINDOW %> on <%= @branch || "no branch" %></p>
+      <%= form_with url: project_test_case_path(current_project, @test_case), method: :get do |f| %>
+        <%= f.select :branch, options_for_select(@branches, @branch), {}, data: { controller: "auto-submit", action: "change->auto-submit#submit" },
+              class: "rounded-md border border-neutral-bdr px-2 py-1 text-xs" %>
+      <% end %>
+    </div>
+    <div class="flex gap-1.5 flex-wrap">
+      <% @results.each do |result| %>
+        <%= link_to project_run_path(current_project, result.run), data: { history_dot: true }, class: "p-1 rounded-sm hover:bg-ruby-sub" do %>
+          <%= status_dot(result.status, title: "#{result.status} · #{result.run.commit_sha&.first(7)} · #{l(result.run.created_at, format: :short)}") %>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>
+<%= panel(extra: "mb-6") do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3">Verdicts by branch</p>
+  <% if @verdicts.empty? %>
+    <p class="text-sm text-neutral-mid">No verdicts yet.</p>
+  <% else %>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-xs text-neutral-mid"><th class="py-1">Branch</th><th>Flaky</th><th>Reason</th><th class="text-right">Samples</th></tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-bdr">
+        <% @verdicts.each do |verdict| %>
+          <tr data-verdict-row="<%= verdict.branch %>">
+            <td class="py-1.5 font-mono"><%= verdict.branch %></td>
+            <td><%= verdict.flaky ? status_pill("flaky") : "No" %></td>
+            <td><%= @test_case.flaky_reason_text(verdict.flaky_reason) || "–" %></td>
+            <td class="text-right"><%= verdict.sample_count %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+<% end %>
+<%= panel do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3">Duration (ms)</p>
+  <%= line_chart @results.map { |r| [l(r.run.created_at, format: :short), r.duration_ms] }, html: %(<div id="%{id}" class="h-[220px] w-full text-center leading-[220px] text-sm text-neutral-mid">%{loading}</div>) %>
+<% end %>

@@ -1,0 +1,30 @@
+test:
+  service: Disk
+  root: <%= Rails.root.join("tmp/storage") %>
+
+local:
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+
+<% require Rails.root.join("lib/storage_service").to_s %>
+# Any S3-compatible service: AWS, Cloudflare R2, MinIO, Backblaze (spec 2026-10-29 §7.2).
+s3: &s3
+  service: S3
+<% StorageService.s3_options.each do |key, value| %>
+  <%= key %>: <%= value.to_json %>
+<% end %>
+
+# Blobs uploaded while the service was called r2 keep that name.
+r2: *s3
+
+# Remember not to checkin your GCS keyfile to a repository
+# google:
+#   service: GCS
+#   project: your_project
+#   credentials: <%= Rails.root.join("path/to/gcs.keyfile") %>
+#   bucket: your_own_bucket-<%= Rails.env %>
+
+# mirror:
+#   service: Mirror
+#   primary: local
+#   mirrors: [ amazon, google, microsoft ]

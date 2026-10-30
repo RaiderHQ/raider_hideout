@@ -1,0 +1,30 @@
+<%= panel(padding: "p-4") do %>
+  <section data-testid="analytics-failing">
+    <%= render "analytics/list_header", title: "Most failing", list: "failing", explore_path: analytics_explore_path(sort: "failures") %>
+    <% if (empty = analytics_empty_text(@failing)) %>
+      <p class="text-sm text-neutral-mid"><%= empty %></p>
+    <% else %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-mid">
+              <th class="py-1">Test</th><th>File</th><th class="text-right">Failures</th><th class="text-right">Executed</th>
+              <th class="text-right">Failure rate</th><th class="text-right">Last failure</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-bdr">
+            <% @failing.each do |row| %>
+              <tr>
+                <%= render "analytics/test_cell", test_case: row.test_case, flags: { "flaky" => row.flaky, "quarantined" => row.quarantined }.select { _2 }.keys %>
+                <td class="text-right"><%= row.failures %></td>
+                <td class="text-right"><%= row.executed %></td>
+                <td class="text-right"><%= analytics_rate(row.failure_rate) %></td>
+                <td class="text-right text-xs text-neutral-mid"><%= time_ago_in_words(row.last_failure_at) %> ago</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+<% end %>

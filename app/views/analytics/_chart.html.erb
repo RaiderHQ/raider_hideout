@@ -1,0 +1,9 @@
+<%# One trend chart panel: the chart (the block), or the empty text when there is nothing to plot. %>
+<%= panel do %>
+  <p class="text-xs uppercase tracking-wider text-neutral-mid mb-3"><%= title %></p>
+  <% if empty %>
+    <p class="text-sm text-neutral-mid" data-testid="chart-empty"><%= empty %></p>
+  <% else %>
+    <%= yield %>
+  <% end %>
+<% end %>

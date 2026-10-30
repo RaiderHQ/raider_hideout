@@ -1,0 +1,19 @@
+<ul class="divide-y divide-neutral-bdr" data-testid="explore-results">
+  <% @rows.each do |result| %>
+    <li class="flex items-start gap-4 px-4 py-3">
+      <%= status_pill(result.status) %>
+      <div class="flex-1 min-w-0">
+        <%= link_to result.test_case.full_name, project_test_case_path(current_project, result.test_case, branch: @branch),
+              class: "block truncate font-medium text-ruby" %>
+        <% if (line = Search::ResultsQuery.first_line(result.failure_message)).present? %>
+          <p class="truncate font-mono text-xs text-neutral-dark"><%= line %></p>
+        <% end %>
+        <p class="text-xs text-neutral-mid">
+          <%= l(result.run.created_at, format: :short) %> · <%= result.duration_ms %> ms ·
+          <%= link_to "Run", project_run_path(current_project, result.run), class: "hover:text-ruby" %> ·
+          <%= link_to "Build", project_build_path(current_project, result.run.build), class: "hover:text-ruby" %>
+        </p>
+      </div>
+    </li>
+  <% end %>
+</ul>

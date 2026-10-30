@@ -1,0 +1,36 @@
+<div class="mb-6">
+  <p class="text-sm text-neutral-mid"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> ·
+    <%= link_to "Builds", project_builds_path(current_project), class: "hover:text-ruby" %> ·
+    <%= link_to "Build ##{@run.build.id}", project_build_path(current_project, @run.build), class: "hover:text-ruby" %></p>
+  <h1 class="text-2xl font-semibold flex items-center gap-3"><%= status_pill(@run.status) %> <%= @run.commit_message.presence || "Run ##{@run.id}" %></h1>
+</div>
+<%= panel(extra: "mb-6 grid grid-cols-2 sm:grid-cols-6 gap-4 text-center") do %>
+  <% [["Total", @run.total_count, "text-neutral-dark"], ["Passed", @run.passed_count, "text-status-ok"],
+      ["Failed", @run.failed_count, "text-status-err"], ["Skipped", @run.skipped_count + @run.pending_count, "text-neutral-mid"],
+      ["Flaky", @run.flaky_count, "text-accent-gold"], ["Duration", @run.duration_ms ? "#{(@run.duration_ms / 1000.0).round(1)}s" : "–", "text-neutral-dark"]].each do |label, value, color| %>
+    <div><p class="text-2xl font-semibold <%= color %>"><%= value %></p><p class="text-xs uppercase tracking-wider text-neutral-mid"><%= label %></p></div>
+  <% end %>
+<% end %>
+<p class="text-xs text-neutral-mid mb-4">
+  <% if @run.shard_label.present? %><span class="font-mono"><%= @run.shard_label %></span> · <% end %>
+  <%= @run.branch || "no branch" %><% if @run.commit_sha %> · <span class="font-mono"><%= @run.commit_sha.first(7) %></span><% end %>
+  <% if @run.quarantined_count.positive? %> · <span class="text-status-quarantine" data-testid="quarantined-count"><%= @run.quarantined_count %> quarantined</span><% end %>
+  <% if @run.build_url.to_s.match?(%r{\Ahttps?://}i) %> · <%= link_to "CI build", @run.build_url, class: "text-ruby", target: "_blank", rel: "noopener noreferrer" %><% end %>
+</p>
+<%= results_expired_notice([@run]) %>
+<div data-controller="lightbox" class="space-y-6">
+  <% @groups.each do |file, results| %>
+    <section>
+      <h2 class="font-mono text-sm text-neutral-dk mb-2"><%= file %></h2>
+      <div class="space-y-2">
+        <% results.each do |result| %>
+          <%= render "test_results/card", result: result, verdict: @verdicts[result.test_case_id] %>
+        <% end %>
+      </div>
+    </section>
+  <% end %>
+  <dialog data-lightbox-target="dialog" data-action="click->lightbox#close"
+          class="m-auto rounded-lg shadow-elevated p-0 backdrop:bg-neutral-dark/60 max-w-5xl">
+    <img data-lightbox-target="image" alt="" class="block max-h-[85vh]">
+  </dialog>
+</div>

@@ -1,0 +1,17 @@
+<div class="max-w-md">
+  <%= panel do %>
+    <h1 class="text-xl font-semibold mb-4">New project</h1>
+    <%= form_with model: @project, class: "space-y-4" do |f| %>
+      <% if @project.errors.any? %>
+        <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3"><%= @project.errors.full_messages.to_sentence %></div>
+      <% end %>
+      <% if @organizations.size > 1 %>
+        <%= f.select :organization_id, @organizations.map { |o| [o.name, o.id] }, { selected: @selected_organization_id.presence || Current.user.personal_organization&.id },
+              class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+      <% end %>
+      <%= f.text_field :name, required: true, autofocus: true, placeholder: "Project name",
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+      <%= f.submit "Create project", class: button_classes(:primary) %>
+    <% end %>
+  <% end %>
+</div>

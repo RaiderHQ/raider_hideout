@@ -1,0 +1,21 @@
+# Raider Hideout from source (docs/install/source.md).
+# Copy to /etc/systemd/system/hideout.service, then: systemctl enable --now hideout
+[Unit]
+Description=Raider Hideout
+After=network.target
+
+[Service]
+Type=simple
+User=hideout
+WorkingDirectory=/opt/hideout
+EnvironmentFile=/etc/hideout.env
+Environment=RAILS_ENV=production
+Environment=SOLID_QUEUE_IN_PUMA=1
+# The Ruby 4.0.5 bin directory from mise or rbenv first, so bin/rails finds it.
+Environment=PATH=/home/hideout/.local/share/mise/installs/ruby/4.0.5/bin:/usr/local/bin:/usr/bin:/bin
+ExecStartPre=/opt/hideout/bin/rails db:prepare
+ExecStart=/opt/hideout/bin/rails server -b 127.0.0.1 -p 3000
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

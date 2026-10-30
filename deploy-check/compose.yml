@@ -1,0 +1,58 @@
+# Local stand-in for production (spec 2026-10-29), driven by bin/deploy-check.
+# MinIO plays S3. The app shares MinIO's network namespace, so presigned URLs
+# to localhost:9000 work from inside the app and from the host alike.
+# MinIO no longer publishes images on Docker Hub or Quay, so this pins the last
+# Bitnami build (it bundles `mc` too); the pin keeps the check reproducible.
+name: raider-deploy-check
+
+services:
+  minio:
+    image: &minio bitnamilegacy/minio:2025.7.23-debian-12-r5
+    command: minio server /bitnami/minio/data
+    environment:
+      MINIO_ROOT_USER: deploy-check-root
+      MINIO_ROOT_PASSWORD: deploy-check-root-secret
+    ports:
+      - "3003:3000"
+      - "9000:9000"
+    volumes:
+      - minio_data:/bitnami/minio/data
+    healthcheck:
+      test: [ "CMD", "mc", "ready", "local" ]
+      interval: 2s
+      retries: 30
+
+  buckets:
+    image: *minio
+    network_mode: "service:minio"
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./policies:/policies:ro
+    entrypoint: [ "/bin/sh", "-c" ]
+    command:
+      - |
+        set -e
+        mc alias set root http://localhost:9000 deploy-check-root deploy-check-root-secret
+        mc mb --ignore-existing root/attachments root/backups
+        mc admin policy create root attachments-rw /policies/attachments.json
+        mc admin policy create root backups-rw /policies/backups.json
+        mc admin user add root attachments-key attachments-secret
+        mc admin user add root backups-key backups-secret
+        mc admin policy attach root attachments-rw --user attachments-key
+        mc admin policy attach root backups-rw --user backups-key
+
+  app:
+    image: hideout:deploy-check
+    network_mode: "service:minio"
+    depends_on:
+      buckets:
+        condition: service_completed_successfully
+    env_file: .env.deploy-check
+    volumes:
+      - raider_storage:/rails/storage
+
+volumes:
+  minio_data:
+  raider_storage:

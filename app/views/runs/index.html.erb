@@ -1,0 +1,18 @@
+<%= turbo_stream_from current_project, :runs, channel: ProjectStreamsChannel %>
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Runs</h1>
+  <%= form_with url: project_runs_path(current_project), method: :get, data: { turbo_frame: "_top" } do |f| %>
+    <%= f.select :branch, options_for_select([["All branches", ""]] + @branches, params[:branch]), {},
+          data: { controller: "auto-submit", action: "change->auto-submit#submit" },
+          class: "rounded-md border border-neutral-bdr px-3 py-2 text-sm focus:border-ruby focus:outline-none" %>
+  <% end %>
+</div>
+<%= panel(padding: "p-2") do %>
+  <div id="runs" class="divide-y divide-neutral-bdr">
+    <%= render partial: "runs/run", collection: @runs, as: :run %>
+    <% if @runs.empty? %>
+      <p class="hidden only:block p-4 text-neutral-mid">No runs yet. Add an API token to CI and run your suite.</p>
+    <% end %>
+  </div>
+<% end %>
+<div class="mt-4"><%== @pagy.series_nav if @pagy.pages > 1 %></div>

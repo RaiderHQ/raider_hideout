@@ -1,0 +1,20 @@
+<div class="max-w-md space-y-6">
+  <%= panel do %>
+    <h1 class="text-xl font-semibold mb-4">Organization settings</h1>
+    <%= render "form", organization: @organization %>
+  <% end %>
+  <% unless @organization.personal? %>
+    <%= panel do %>
+      <h2 class="text-lg font-semibold mb-2">Delete organization</h2>
+      <p class="text-sm text-neutral-dk mb-4">This deletes <%= @organization.name %> with all its projects, builds, runs, tokens and notification channels. Type the organization name to confirm.</p>
+      <% if @delete_error %>
+        <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3 mb-4"><%= @delete_error %></div>
+      <% end %>
+      <%= form_with url: organization_path(@organization), method: :delete, class: "space-y-4" do |f| %>
+        <%= f.text_field :confirm_name, required: true, autocomplete: "off", placeholder: @organization.name,
+              class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+        <%= f.submit "Delete organization", class: button_classes(:danger) %>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

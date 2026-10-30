@@ -1,0 +1,40 @@
+<%= panel(padding: "p-4") do %>
+  <section data-testid="analytics-flaky">
+    <%= render "analytics/list_header", title: "Flakiest", list: "flaky", explore_path: analytics_explore_path(flaky: true) %>
+    <% if (empty = analytics_empty_text(@flaky)) %>
+      <p class="text-sm text-neutral-mid"><%= empty %></p>
+    <% else %>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-neutral-mid">
+              <th class="py-1">Test</th><th>File</th><th class="text-right">Flip rate</th><th>Reason</th>
+              <th>Flaky since</th><th class="text-right">Samples</th><th></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-neutral-bdr">
+            <% @flaky.each do |row| %>
+              <tr>
+                <%= render "analytics/test_cell", test_case: row.test_case %>
+                <td class="text-right"><%= analytics_rate(row.flip_rate) %></td>
+                <td class="pl-2 text-xs"><%= row.test_case.flaky_reason_text(row.reason) || "–" %></td>
+                <td class="text-xs">
+                  <%= row.flaky_since_build ? link_to("build ##{row.flaky_since_build.id}", project_build_path(current_project, row.flaky_since_build), class: "text-ruby") : "–" %>
+                </td>
+                <td class="text-right"><%= row.sample_count %></td>
+                <td class="text-right pl-2">
+                  <% if row.quarantined %>
+                    <%= status_pill("quarantined") %>
+                  <% elsif role_at_least?(:member) %>
+                    <%= link_to "Quarantine", project_test_case_path(current_project, row.test_case, branch: @filter.branch, anchor: "quarantine"),
+                          class: button_classes(:outline, extra: "min-w-0 px-3 py-1 text-xs") %>
+                  <% end %>
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    <% end %>
+  </section>
+<% end %>

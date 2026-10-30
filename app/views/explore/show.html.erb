@@ -1,0 +1,93 @@
+<div class="mb-6">
+  <h1 class="text-2xl font-semibold"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Explore</h1>
+</div>
+
+<div class="flex flex-col lg:flex-row gap-6">
+  <aside class="lg:order-last lg:w-72 space-y-4" data-testid="saved-views">
+    <%= render "explore/saved_views" %>
+  </aside>
+  <div class="flex-1 min-w-0 space-y-4">
+    <%= form_with url: project_explore_path(current_project), method: :get, class: "flex gap-2", data: { testid: "query-form" } do |f| %>
+      <%= hidden_field_tag :level, @level, id: nil %>
+      <%= hidden_field_tag :view, @view.id, id: nil if @view %>
+      <%= f.search_field :q, value: @filter.to_query, maxlength: Search::Filter::MAX_QUERY, aria: { label: "Search query" },
+            placeholder: 'status:failed tag:smoke "Timeout"', class: "flex-1 min-w-0 rounded-md border border-neutral-bdr px-3 py-2 text-sm font-mono" %>
+      <%= f.submit "Search", name: nil, class: button_classes(:primary) %>
+    <% end %>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <% Search::Filter::LEVELS.each do |level| %>
+        <%= link_to level.capitalize, explore_path_for(level: level), aria: { current: (level == @level ? "page" : nil) },
+              class: button_classes(level == @level ? :primary : :outline, extra: "min-w-0") %>
+      <% end %>
+      <%= render "explore/syntax" %>
+    </div>
+
+    <% if @filter.notices.any? %>
+      <ul class="rounded-md bg-ruby-sub px-4 py-3 text-sm text-neutral-dark space-y-1" data-testid="search-notices">
+        <% @filter.notices.each do |notice| %><li><%= notice %></li><% end %>
+      </ul>
+    <% end %>
+
+    <% fields = @filter.to_params %>
+    <%= form_with url: project_explore_path(current_project), method: :get, data: { testid: "filter-fields" },
+          class: "grid gap-3 sm:grid-cols-2 lg:grid-cols-4" do %>
+      <%= hidden_field_tag :fields, "1", id: nil %>
+      <%= hidden_field_tag :level, @level, id: nil %>
+      <%= hidden_field_tag :view, @view.id, id: nil if @view %>
+      <%= hidden_field_tag :text, fields["text"], id: nil %>
+      <fieldset class="sm:col-span-2 lg:col-span-4 flex flex-wrap items-center gap-4 text-sm">
+        <legend class="sr-only">Status</legend>
+        <% Search::Filter::STATUSES.each do |status| %>
+          <label class="flex items-center gap-1">
+            <%= check_box_tag "statuses[]", status, @filter.statuses.include?(status), id: "status_#{status}",
+                  data: { controller: "auto-submit", action: "change->auto-submit#submit" } %>
+            <%= status.capitalize %>
+          </label>
+        <% end %>
+        <label class="flex items-center gap-1">
+          <%= check_box_tag :flaky, "1", @filter.flaky, id: "filter_flaky", data: { controller: "auto-submit", action: "change->auto-submit#submit" } %>
+          Flaky only
+        </label>
+        <label class="flex items-center gap-1">
+          <%= check_box_tag :quarantined, "1", @filter.quarantined, id: "filter_quarantined", data: { controller: "auto-submit", action: "change->auto-submit#submit" } %>
+          Quarantined only
+        </label>
+      </fieldset>
+      <label class="text-sm">Branch
+        <%= select_tag :branch, options_for_select(@branches, @branch), id: "filter_branch", class: ExploreHelper::FIELD_CLASSES,
+              data: { controller: "auto-submit", action: "change->auto-submit#submit" } %>
+      </label>
+      <label class="text-sm">Range
+        <%= select_tag :since, options_for_select(ExploreHelper::RANGE_LABELS.invert, @filter.since), id: "filter_since", class: ExploreHelper::FIELD_CLASSES,
+              data: { controller: "auto-submit", action: "change->auto-submit#submit" } %>
+      </label>
+      <label class="text-sm">Sort
+        <%= select_tag :sort, options_for_select(sort_options(@level), @filter.sort_for(@level)), id: "filter_sort", class: ExploreHelper::FIELD_CLASSES,
+              data: { controller: "auto-submit", action: "change->auto-submit#submit" } %>
+      </label>
+      <label class="text-sm">Tags
+        <%= text_field_tag :tags, fields["tags"], id: "filter_tags", placeholder: "smoke, login", class: ExploreHelper::FIELD_CLASSES %>
+      </label>
+      <label class="text-sm">Name <%= text_field_tag :name, @filter.name, id: "filter_name", class: ExploreHelper::FIELD_CLASSES %></label>
+      <label class="text-sm">File <%= text_field_tag :file, @filter.file, id: "filter_file", class: ExploreHelper::FIELD_CLASSES %></label>
+      <label class="text-sm">Error <%= text_field_tag :error, @filter.error, id: "filter_error", class: ExploreHelper::FIELD_CLASSES %></label>
+      <div class="flex items-end"><%= submit_tag "Apply", name: nil, class: button_classes(:secondary) %></div>
+    <% end %>
+
+    <%= panel(padding: "p-2") do %>
+      <% if @rows.empty? %>
+        <p class="p-4 text-neutral-mid" data-testid="explore-empty">
+          <% if @level == "results" %>No results match.
+          <% elsif @filter.narrowed? %>No tests match.
+          <% else %>No tests ran on <%= @branch %> in the last <%= range_phrase(@filter.since) %>.
+          <% end %>
+          <%= link_to "Clear filters", project_explore_path(current_project, level: @level, q: ""), class: "text-ruby" %>
+        </p>
+      <% else %>
+        <%= @level == "results" ? render("explore/results") : render("explore/tests") %>
+      <% end %>
+    <% end %>
+    <div class="mt-4"><%== @pagy.series_nav if @pagy.pages > 1 %></div>
+  </div>
+</div>

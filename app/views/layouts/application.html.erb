@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= content_for(:title) || "Raider Hideout" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+    <%= yield :head %>
+  </head>
+  <body>
+    <nav class="bg-neutral-wh shadow-nav">
+      <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+        <%= link_to root_path, class: "flex items-center gap-2 font-semibold text-neutral-dark" do %>
+          <%= image_tag "logo.svg", alt: "", class: "h-8 w-8" %> Raider Hideout
+        <% end %>
+        <% if authenticated? %>
+          <div class="flex items-center gap-4 text-sm">
+            <%= link_to "Projects", root_path, class: "text-neutral-dk hover:text-ruby" %>
+            <details id="organization-menu" class="relative">
+              <summary class="cursor-pointer list-none text-neutral-dk hover:text-ruby">Organizations</summary>
+              <div class="absolute right-0 mt-2 w-56 bg-neutral-wh rounded-md shadow-card border border-neutral-bdr py-1 z-10">
+                <% menu_organizations.each do |organization| %>
+                  <%= link_to organization.name, organization_path(organization), class: "block px-4 py-2 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
+                <% end %>
+                <%= link_to "New organization", new_organization_path, class: "block px-4 py-2 border-t border-neutral-bdr text-ruby hover:bg-ruby-sub" %>
+              </div>
+            </details>
+            <%= link_to "Tokens", personal_tokens_path, class: "text-neutral-dk hover:text-ruby" %>
+            <%= button_to "Sign out", session_path, method: :delete, class: "text-neutral-mid hover:text-ruby" %>
+          </div>
+        <% end %>
+      </div>
+    </nav>
+    <main class="max-w-6xl mx-auto px-4 py-8 animate-page-enter">
+      <% flash.each do |type, message| %>
+        <div class="mb-6 rounded-md px-4 py-3 text-sm <%= type == 'alert' ? 'bg-status-err-bg text-status-err' : 'bg-status-ok-bg text-status-ok' %>"><%= message %></div>
+      <% end %>
+      <%= yield %>
+    </main>
+  </body>
+</html>

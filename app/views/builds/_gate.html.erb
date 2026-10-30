@@ -1,0 +1,21 @@
+<%= panel(extra: "mb-6", padding: "p-4") do %>
+  <div data-testid="gate-panel">
+    <h2 class="text-sm font-semibold mb-3">Quality gate</h2>
+    <table class="w-full text-sm">
+      <thead class="text-xs uppercase tracking-wider text-neutral-mid">
+        <tr><th class="text-left py-1">Rule</th><th class="text-left py-1">Threshold</th><th class="text-left py-1">Actual</th><th class="text-left py-1">Outcome</th></tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-bdr">
+        <% report.rules.each do |rule| %>
+          <tr data-gate-rule="<%= rule.rule %>" data-gate-outcome="<%= rule.outcome %>">
+            <% label, source = Builds::GateReport::LABELS.fetch(rule.rule), gate_rule_source(build, rule, comparison: comparison) %>
+            <td class="py-2"><%= source ? link_to(label, source, class: "text-ruby") : label %></td>
+            <td class="py-2"><%= gate_threshold(rule) %></td>
+            <td class="py-2"><%= gate_actual(rule) %></td>
+            <td class="py-2"><%= gate_outcome(rule) %></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+<% end %>

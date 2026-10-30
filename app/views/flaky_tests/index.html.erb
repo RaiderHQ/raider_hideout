@@ -1,0 +1,34 @@
+<div class="flex items-center justify-between mb-6">
+  <h1 class="text-2xl font-semibold"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Flaky tests</h1>
+  <%= form_with url: project_flaky_tests_path(current_project), method: :get do |f| %>
+    <%= f.select :branch, options_for_select(@branches, @branch), {},
+          data: { controller: "auto-submit", action: "change->auto-submit#submit" }, class: "rounded-md border border-neutral-bdr px-3 py-2 text-sm" %>
+  <% end %>
+</div>
+<%= panel(padding: "p-2") do %>
+  <% if @verdicts.empty? %>
+    <p class="p-4 text-neutral-mid">No flaky tests detected on <%= @branch %>.</p>
+  <% else %>
+    <ul class="divide-y divide-neutral-bdr">
+      <% @verdicts.each do |verdict| %>
+        <% test_case = verdict.test_case %>
+        <li class="flex items-center gap-4 px-4 py-3 hover:bg-ruby-sub rounded-md">
+          <%= link_to project_test_case_path(current_project, test_case, branch: verdict.branch), class: "flex flex-1 min-w-0 items-center gap-4" do %>
+            <%= status_pill("flaky") %>
+            <div class="flex-1 min-w-0">
+              <p class="font-medium truncate"><%= test_case.full_name %></p>
+              <p class="text-xs text-neutral-mid"><span class="font-mono"><%= test_case.file_path %></span> · <%= test_case.flaky_reason_text(verdict.flaky_reason) %></p>
+            </div>
+            <span class="text-sm font-semibold"><%= ((verdict.flip_rate || 0) * 100).round %>%</span>
+          <% end %>
+          <% if @quarantined_ids.include?(test_case.id) %>
+            <span data-testid="quarantined-badge"><%= status_pill("quarantined") %></span>
+          <% elsif role_at_least?(:member) %>
+            <%= link_to "Quarantine", project_test_case_path(current_project, test_case, branch: verdict.branch, anchor: "quarantine"),
+                  class: button_classes(:outline, extra: "min-w-0 px-3 py-1 text-xs") %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+<% end %>

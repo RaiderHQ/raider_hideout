@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# Proves the production image works end to end, with MinIO standing in for S3
+# (spec 2026-10-29). Needs Docker (e.g. `colima start`). Usage: bin/deploy-check [--keep]
+set -Eeuo pipefail
+cd "$(dirname "$0")/.."
+
+KEEP=0
+[ "${1:-}" = "--keep" ] && KEEP=1
+DIR=deploy-check
+IMAGE=hideout:deploy-check
+APP=http://localhost:3003
+STEP="setup"
+WORK=$(mktemp -d)
+if docker compose version >/dev/null 2>&1; then DC=(docker compose -f "$DIR/compose.yml"); else DC=(docker-compose -f "$DIR/compose.yml"); fi
+
+step() { STEP="$1"; echo "==> $1"; }
+fail() { echo "deploy-check FAILED at: $STEP${1:+ — $1}" >&2; exit 1; }
+trap 'fail' ERR
+cleanup() {
+  rm -rf "$WORK"
+  if [ "$KEEP" = 1 ]; then
+    echo "Stack left up at $APP (check@example.com / deploy-check-pass). Stop it: ${DC[*]} down -v"
+  else
+    "${DC[@]}" down -v >/dev/null 2>&1 || true
+    rm -f "$DIR/.env.deploy-check"
+  fi
+}
+trap cleanup EXIT
+
+# rails runner output shares stdout with production logs, so values are printed as NAME=value.
+runner() { "${DC[@]}" exec -T app ./bin/rails runner "$1"; }
+value() { grep "^$1=" | tail -n1 | cut -d= -f2-; }
+mc_as() { local user=$1 secret=$2; shift 2
+  "${DC[@]}" exec -T minio sh -c "mc alias set chk http://localhost:9000 $user $secret >/dev/null && mc $*"; }
+wait_up() {
+  for _ in $(seq 1 60); do curl -fsS "$APP/up" >/dev/null 2>&1 && return 0; sleep 2; done
+  fail "the app did not answer /up"
+}
+
+step "build the production image"
+docker build -t "$IMAGE" .
+
+step "start MinIO and the app"
+"${DC[@]}" down -v >/dev/null 2>&1 || true
+cat > "$DIR/.env.deploy-check" <<ENV
+APP_HOST=localhost
+HIDEOUT_FORCE_SSL=false
+MAILER_FROM=deploy-check@localhost
+SOLID_QUEUE_IN_PUMA=1
+ACTIVE_STORAGE_SERVICE=s3
+S3_ENDPOINT=http://localhost:9000
+S3_BUCKET=attachments
+S3_ACCESS_KEY_ID=attachments-key
+S3_SECRET_ACCESS_KEY=attachments-secret
+S3_FORCE_PATH_STYLE=true
+BACKUP_BUCKET=backups
+BACKUP_S3_ACCESS_KEY_ID=backups-key
+BACKUP_S3_SECRET_ACCESS_KEY=backups-secret
+ENV
+"${DC[@]}" up -d
+
+step "the app answers /up"
+wait_up
+
+step "first-run setup prints a token"
+LOGS=$("${DC[@]}" logs app 2>&1)   # captured first: grep -q closing the pipe early would trip pipefail
+grep -q "/setup?code=" <<<"$LOGS" || fail "no setup link in the log"
+TOKEN=$("${DC[@]}" exec -T app ./bin/rails hideout:setup EMAIL=check@example.com ORG="Deploy check" \
+  PROJECT="Deploy check" PASSWORD=deploy-check-pass | value RAIDER_TOKEN)
+[ -n "$TOKEN" ] || fail "no token printed"
+
+step "ingest a run with a screenshot and an HTML file"
+RESPONSE=$(curl -fsS -H "Authorization: Bearer $TOKEN" -F "payload=<$DIR/fixtures/payload.json" \
+  -F "att_0=@$DIR/fixtures/shot.png;type=image/png" -F "att_1=@$DIR/fixtures/report.html;type=text/html" \
+  "$APP/api/v1/runs")
+echo "$RESPONSE" | grep -q '"run_id"' || fail "unexpected ingest response: $RESPONSE"
+
+step "both files are in the attachments bucket"
+KEYS=$(runner 'ActiveStorage::Blob.order(:id).each { |blob| puts "KEY=#{blob.key}" }' | grep '^KEY=' | cut -d= -f2-)
+[ "$(echo "$KEYS" | grep -c .)" = 2 ] || fail "expected 2 blobs, got: $KEYS"
+LISTING=$(mc_as deploy-check-root deploy-check-root-secret ls --recursive chk/attachments)
+for key in $KEYS; do echo "$LISTING" | grep -q "$key" || fail "blob $key missing from the bucket"; done
+
+step "a presigned URL serves the screenshot inline, byte for byte"
+URL=$(runner 'puts "URL=#{ActiveStorage::Blob.find_by!(filename: "shot.png").url(expires_in: 5.minutes, disposition: "inline")}"' | value URL)
+curl -fsS -D "$WORK/headers" -o "$WORK/shot.png" "$URL"
+cmp -s "$WORK/shot.png" "$DIR/fixtures/shot.png" || fail "downloaded bytes differ"
+grep -qi '^content-disposition: inline' "$WORK/headers" || fail "screenshot is not served inline"
+
+step "a presigned URL forces the HTML file to download"
+URL=$(runner 'puts "URL=#{ActiveStorage::Blob.find_by!(filename: "report.html").url(expires_in: 5.minutes, disposition: "inline")}"' | value URL)
+curl -fsS -D "$WORK/headers" -o /dev/null "$URL"
+grep -qi '^content-disposition: attachment' "$WORK/headers" || fail "HTML is not forced to download"
+if grep -qi '^content-type: text/html' "$WORK/headers"; then fail "HTML is served as text/html"; fi
+
+step "the app redirects a signed-in member to the stored screenshot"
+COOKIE=$(runner '
+  s = Session.create!(user: User.find_by!(email_address: "check@example.com"), user_agent: "deploy-check", ip_address: "127.0.0.1")
+  req = ActionDispatch::Request.new(Rails.application.env_config.merge("HTTP_HOST" => "localhost", "rack.input" => StringIO.new))
+  req.cookie_jar.signed[:session_id] = s.id
+  puts "COOKIE=#{req.cookie_jar[:session_id]}"
+' | value COOKIE)
+[ -n "$COOKIE" ] || fail "no session cookie printed"
+ATTACHMENT_ID=$(runner 'puts "ID=#{ActiveStorage::Blob.find_by!(filename: "shot.png").attachments.first.id}"' | value ID)
+[ -n "$ATTACHMENT_ID" ] || fail "no attachment id printed"
+OUT=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -b "session_id=$COOKIE" "$APP/attachments/$ATTACHMENT_ID")
+STATUS=${OUT%% *}
+LOCATION=${OUT#* }
+[ "$STATUS" = 302 ] || fail "expected 302 for a member, got: $OUT"
+case "$LOCATION" in http://localhost:9000/attachments/*) ;; *) fail "unexpected redirect: $LOCATION" ;; esac
+curl -fsS -o "$WORK/redirected.png" "$LOCATION"
+cmp -s "$WORK/redirected.png" "$DIR/fixtures/shot.png" || fail "bytes behind the redirect differ"
+ANON=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$APP/attachments/$ATTACHMENT_ID")
+case "$ANON" in *localhost:9000*) fail "signed-out request was redirected to storage: $ANON" ;; esac
+
+step "the backups key cannot read attachments"
+if mc_as backups-key backups-secret ls chk/attachments >/dev/null 2>&1; then fail "backups key can list attachments"; fi
+
+step "the nightly backup goes offsite"
+runner 'BackupJob.perform_now' >/dev/null
+NAME=$(mc_as backups-key backups-secret ls chk/backups/backups/ | grep -o 'raider-[0-9]\{8\}-[0-9]\{6\}\.sqlite3\.gz' | tail -n1)
+[ -n "$NAME" ] || fail "no backup in the backups bucket"
+
+step "fetch the offsite backup and restore it"
+"${DC[@]}" exec -T app rm -f "storage/backups/$NAME"
+"${DC[@]}" exec -T app ./bin/rails backup:fetch FILE="$NAME"
+"${DC[@]}" exec -T app ./bin/rails backup:restore FILE="storage/backups/$NAME"
+COUNTS=$(runner '
+  restored = SQLite3::Database.new("storage/production.sqlite3.restored", readonly: true)
+  puts "COUNTS=#{Run.count} #{restored.get_first_value("SELECT COUNT(*) FROM runs")}"
+' | value COUNTS)
+LIVE=${COUNTS% *}; RESTORED=${COUNTS#* }
+[ "$LIVE" -ge 1 ] && [ "$LIVE" = "$RESTORED" ] || fail "row counts differ (live restored): $COUNTS"
+
+step "data survives a container restart"
+SECRETS_BEFORE=$("${DC[@]}" exec -T app sha256sum storage/hideout-secrets.yml)
+"${DC[@]}" restart app >/dev/null
+wait_up
+[ "$("${DC[@]}" exec -T app sha256sum storage/hideout-secrets.yml)" = "$SECRETS_BEFORE" ] || fail "secrets changed on restart"
+RUNS=$(runner 'puts "RUNS=#{Run.count}"' | value RUNS)
+[ "$RUNS" -ge 1 ] || fail "runs gone after restart"
+
+echo "deploy-check passed"

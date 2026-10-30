@@ -1,0 +1,15 @@
+# ZAP baseline rules for the plain-HTTP boot check (ruling R13).
+10011	IGNORE	Cookie without Secure flag: this container runs with HIDEOUT_FORCE_SSL=false
+10035	IGNORE	Strict-Transport-Security: this container runs over plain HTTP
+10038	FAIL	Content Security Policy header not set
+10020	FAIL	Anti-clickjacking header missing
+10021	FAIL	X-Content-Type-Options header missing
+10010	FAIL	Cookie without HttpOnly flag
+10054	FAIL	Cookie without SameSite attribute
+10111	IGNORE	Authentication Request Identified: informational detection of the sign-in flow
+10112	IGNORE	Session Management Response Identified: informational detection of the session flow
+10094	IGNORE	Base64 Disclosure: CSRF tokens and nonces look like Base64
+10027	IGNORE	Suspicious comments: comments in bundled vendor JavaScript
+10049	IGNORE	Non-Storable Content: pages are deliberately no-store
+90005	IGNORE	Sec-Fetch-Dest header is missing: it is a request header the scanner did not send
+90004	IGNORE	Insufficient Site Isolation Against Spectre: COEP require-corp would need every embedded resource to opt in; no cross-origin isolation is needed

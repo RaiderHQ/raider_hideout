@@ -1,0 +1,24 @@
+<div class="max-w-md mx-auto">
+  <%= panel do %>
+    <% if alert = flash[:alert] %>
+      <p class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3 mb-4" id="alert"><%= alert %></p>
+    <% end %>
+    <% if notice = flash[:notice] %>
+      <p class="rounded-md bg-status-ok-bg text-status-ok text-sm px-4 py-3 mb-4" id="notice"><%= notice %></p>
+    <% end %>
+    <h1 class="text-2xl font-semibold mb-6">Sign in to Raider Hideout</h1>
+    <%= form_with url: session_path, class: "space-y-4" do |form| %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "Email", value: params[:email_address],
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Password", maxlength: 72,
+            class: "w-full rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+      <%= form.submit "Sign in", class: button_classes(:primary, extra: "w-full") %>
+    <% end %>
+    <% links = [] %>
+    <% links << link_to("Forgot password?", new_password_path, class: "text-ruby") if Hideout.mail_enabled? %>
+    <% links << link_to("Create an account", new_registration_path, class: "text-ruby") if Hideout.open_signup? %>
+    <% if links.any? %>
+      <p class="mt-4 text-sm text-neutral-mid"><%= safe_join(links, " · ") %></p>
+    <% end %>
+  <% end %>
+</div>

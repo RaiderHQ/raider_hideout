@@ -1,0 +1,6 @@
+<div class="max-w-xl">
+  <%= panel do %>
+    <h1 class="text-xl font-semibold mb-4">New <%= { "slack" => "Slack", "teams" => "Teams", "email" => "email" }[@channel.kind] || "notification" %> channel</h1>
+    <%= render "form", channel: @channel, submit: "Create channel" %>
+  <% end %>
+</div>

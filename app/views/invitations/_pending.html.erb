@@ -1,0 +1,35 @@
+<%= panel(extra: "mt-6") do %>
+  <h2 class="text-lg font-semibold mb-4">Pending invitations</h2>
+  <% if invitations.empty? %>
+    <p class="text-sm text-neutral-mid">No pending invitations.</p>
+  <% else %>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-left text-neutral-mid">
+          <th class="py-2">Email</th>
+          <th class="py-2">Role</th>
+          <th class="py-2">Expires</th>
+          <th class="py-2"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-neutral-bdr">
+        <% invitations.each do |invitation| %>
+          <tr id="<%= dom_id(invitation) %>">
+            <td class="py-3"><%= invitation.email %></td>
+            <td class="py-3"><%= invitation.role %></td>
+            <td class="py-3"><%= invitation.pending? ? invitation.expires_at.to_date.to_fs(:long) : "Expired" %></td>
+            <td class="py-3">
+              <div class="flex gap-2 justify-end">
+                <%= button_to (Hideout.mail_enabled? ? "Resend" : "Show new link"),
+                      resend_organization_invitation_path(organization, invitation),
+                      class: button_classes(:secondary, extra: "min-w-0"), form: { data: { turbo: false } } %>
+                <%= button_to "Revoke", organization_invitation_path(organization, invitation), method: :delete,
+                      class: button_classes(:danger, extra: "min-w-0"), form: { data: { turbo_confirm: "Revoke the invitation to #{invitation.email}?" } } %>
+              </div>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+<% end %>

@@ -1,0 +1,31 @@
+<h1 class="text-2xl font-semibold mb-6"><%= current_project.name %> · API tokens</h1>
+<% if role_at_least?(:member) %>
+<%= panel(extra: "mb-6") do %>
+  <%= form_with url: project_api_tokens_path(current_project), scope: :api_token, class: "flex gap-3", data: { turbo: false } do |f| %>
+    <%= f.text_field :name, placeholder: "Token name, e.g. GitHub Actions",
+          class: "flex-1 rounded-md border border-neutral-bdr px-4 py-2.5 focus:border-ruby focus:outline-none" %>
+    <%= f.submit "Create token", class: button_classes(:primary) %>
+  <% end %>
+<% end %>
+<% end %>
+<%= panel do %>
+  <% if @tokens.empty? %>
+    <p class="text-neutral-mid">No tokens yet.</p>
+  <% else %>
+    <ul class="divide-y divide-neutral-bdr">
+      <% @tokens.each do |token| %>
+        <li class="flex items-center justify-between py-3">
+          <div>
+            <p class="font-medium"><%= token.name %></p>
+            <p class="text-xs text-neutral-mid">Created <%= time_ago_in_words(token.created_at) %> ago ·
+              <%= token.last_used_at ? "last used #{time_ago_in_words(token.last_used_at)} ago" : "never used" %></p>
+          </div>
+          <% if role_at_least?(:member) %>
+          <%= button_to "Revoke", project_api_token_path(current_project, token), method: :delete,
+                class: button_classes(:danger, extra: "min-w-0"), form: { data: { turbo_confirm: "Revoke this token?" } } %>
+          <% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+<% end %>
