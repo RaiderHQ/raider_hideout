@@ -74,7 +74,7 @@ group :development do
 end
 
 gem "pagy", "~> 43.8"
-gem "chartkick", "~> 5.1"
+gem "chartkick", "~> 5.3"
 # Analytics CSV export; a bundled gem since Ruby 3.4, so it must be listed (spec 2026-10-28 §4.6).
 gem "csv", "~> 3.3"
 gem "mcp", "~> 1.8.1"
