@@ -88,6 +88,6 @@ group :test do
   gem "webmock"
   gem "capybara", "~> 3.40"
   gem "selenium-webdriver", "~> 4.47"
-  gem "raider_reporter", "~> 0.7"
+  gem "raider_reporter", "~> 0.9"
   gem "json_schemer", "~> 2.5"
 end
