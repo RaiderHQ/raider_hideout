@@ -1,8 +1,8 @@
 # Install with Docker
 
     mkdir hideout && cd hideout
-    curl -fsSLO https://raw.githubusercontent.com/RaiderHQ/hideout/main/deploy/docker/compose.yml
-    curl -fsSL https://raw.githubusercontent.com/RaiderHQ/hideout/main/deploy/docker/.env.example -o .env
+    curl -fsSLO https://raw.githubusercontent.com/RaiderHQ/ruby_hideout/main/deploy/docker/compose.yml
+    curl -fsSL https://raw.githubusercontent.com/RaiderHQ/ruby_hideout/main/deploy/docker/.env.example -o .env
     # edit .env: at least APP_HOST, and HIDEOUT_VERSION to pin a release
     docker compose up -d
     docker compose logs web | grep setup
