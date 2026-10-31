@@ -77,7 +77,7 @@ gem "pagy", "~> 43.8"
 gem "chartkick", "~> 5.1"
 # Analytics CSV export; a bundled gem since Ruby 3.4, so it must be listed (spec 2026-10-28 §4.6).
 gem "csv", "~> 3.3"
-gem "mcp", "~> 1.8.1"
+gem "mcp", "~> 1.8.2"
 
 group :development, :test do
   gem "rspec-rails", "~> 8.0"
