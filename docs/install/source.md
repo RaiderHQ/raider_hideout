@@ -10,7 +10,7 @@ For a VM or a server you manage, without Docker.
 
 ## Steps
 
-    git clone https://github.com/RaiderHQ/ruby_hideout.git /opt/hideout
+    git clone https://github.com/RaiderHQ/raider_hideout.git /opt/hideout
     cd /opt/hideout
     bundle config set --local without "development test postgres"   # drop "postgres" to use Postgres
     bundle install
