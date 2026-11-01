@@ -19,8 +19,6 @@ module Api
         render json: { error: "invalid payload", details: [ "payload part is required" ] }, status: :unprocessable_content
       rescue Ingest::Invalid => e
         render json: { error: "invalid payload", details: e.details }, status: :unprocessable_content
-      rescue Ingest::TooLarge
-        payload_too_large
       end
 
       private

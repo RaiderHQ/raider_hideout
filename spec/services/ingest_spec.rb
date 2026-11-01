@@ -108,11 +108,77 @@ RSpec.describe Ingest do
       .to raise_error(Ingest::Invalid) { |e| expect(e.details.first).to start_with("payload is not valid JSON") }
   end
 
-  it "raises TooLarge for oversized attachments without creating a run" do
-    stub_const("Ingest::MAX_ATTACHMENT_BYTES", 2)
-    data = build_payload(results: [ build_result("attachments" => [ { "name" => "s", "part" => "att_0", "content_type" => "image/png" } ]) ])
-    expect { ingest(data, { "att_0" => upload_file }) }.to raise_error(Ingest::TooLarge)
-    expect(project.runs.count).to eq(0)
+  describe "attachment size limits" do
+    def attachment(name, part, content_type)
+      { "name" => name, "part" => part, "content_type" => content_type }
+    end
+
+    def ingest_one(attachments, files)
+      ingest(build_payload(results: [ build_result("status" => "failed", "attachments" => attachments,
+                                                   "failure" => { "message" => "boom" }) ]), files).run
+    end
+
+    it "limits each type of file separately" do
+      expect(described_class.limit_for("image/png")).to eq(5.megabytes)
+      expect(described_class.limit_for("text/plain")).to eq(5.megabytes)
+      expect(described_class.limit_for(nil)).to eq(5.megabytes)
+      expect(described_class.limit_for("video/webm")).to eq(50.megabytes)
+      expect(described_class.limit_for("video/mp4")).to eq(50.megabytes)
+      expect(described_class.limit_for("application/vnd.raider.trace+zip")).to eq(25.megabytes)
+      expect(described_class.limit_for("application/zip")).to eq(5.megabytes)
+    end
+
+    it "never allows a file larger than one request" do
+      %w[image/png video/webm application/vnd.raider.trace+zip].each do |type|
+        expect(described_class.limit_for(type)).to be <= Api::V1::RunsController::MAX_REQUEST_BYTES
+      end
+    end
+
+    it "keeps a video over the general limit but under the video limit" do
+      stub_const("Ingest::MAX_ATTACHMENT_BYTES", 2)
+      run = ingest_one([ attachment("video", "att_0", "video/webm") ], { "att_0" => upload_file("v.webm", "WEBM", "video/webm") })
+      result = run.test_results.sole
+      expect(result.attachments.map(&:content_type)).to eq([ "video/webm" ])
+      expect(result.dropped_attachments).to eq([])
+    end
+
+    it "keeps a trace over the general limit but under the trace limit" do
+      stub_const("Ingest::MAX_ATTACHMENT_BYTES", 2)
+      run = ingest_one([ attachment("trace", "att_0", "application/vnd.raider.trace+zip") ],
+                       { "att_0" => upload_file("trace.zip", "ZIPS", "application/vnd.raider.trace+zip") })
+      expect(run.test_results.sole.attachments.size).to eq(1)
+    end
+
+    it "drops only the oversize file, keeps the run, and records why on the result" do
+      stub_const("Ingest::MAX_ATTACHMENT_BYTES", 2)
+      run = ingest_one([ attachment("screenshot", "att_0", "image/png"), attachment("log", "att_1", "text/plain") ],
+                       { "att_0" => upload_file("shot.png", "PNG", "image/png"), "att_1" => upload_file("a.log", "x", "text/plain") })
+      result = run.test_results.sole
+      expect(project.runs.count).to eq(1)
+      expect(run.status).to eq("failed")
+      expect(result.attachments.map { |a| result.attachment_name(a) }).to eq([ "log" ])
+      expect(result.dropped_attachments).to eq([ { "name" => "screenshot", "content_type" => "image/png", "bytes" => 3, "limit" => 2 } ])
+    end
+
+    it "drops a video over the video limit" do
+      stub_const("Ingest::MAX_VIDEO_BYTES", 3)
+      run = ingest_one([ attachment("video", "att_0", "video/webm") ], { "att_0" => upload_file("v.webm", "WEBM", "video/webm") })
+      result = run.test_results.sole
+      expect(result.attachments).to be_empty
+      expect(result.dropped_attachments).to eq([ { "name" => "video", "content_type" => "video/webm", "bytes" => 4, "limit" => 3 } ])
+    end
+
+    it "drops a trace over the trace limit" do
+      stub_const("Ingest::MAX_TRACE_BYTES", 3)
+      run = ingest_one([ attachment("trace", "att_0", "application/vnd.raider.trace+zip") ],
+                       { "att_0" => upload_file("trace.zip", "ZIPS", "application/vnd.raider.trace+zip") })
+      expect(run.test_results.sole.dropped_attachments.map { |d| d["name"] }).to eq([ "trace" ])
+    end
+
+    it "records nothing when every file fits" do
+      run = ingest_one([ attachment("screenshot", "att_0", "image/png") ], { "att_0" => upload_file })
+      expect(run.test_results.sole.dropped_attachments).to eq([])
+    end
   end
 
   it "stores failure fields only for failed results" do

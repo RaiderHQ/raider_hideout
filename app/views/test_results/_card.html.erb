@@ -84,6 +84,9 @@
         <% end %>
       </div>
     <% end %>
+    <% result.dropped_attachments.each do |dropped| %>
+      <p data-testid="dropped-attachment" class="text-xs text-accent-gold"><%= dropped["name"] %> was not stored: <%= number_to_human_size(dropped["bytes"]) %> is over the <%= number_to_human_size(dropped["limit"]) %> limit.</p>
+    <% end %>
     <% if attachments_expired?(result) %>
       <p data-testid="attachments-expired" class="text-xs text-neutral-mid">Attachments expired after <%= Retention.config.attachment_days %> days.</p>
     <% end %>
