@@ -1,10 +1,14 @@
 class Ingest
+  # Per-type limits match raider_reporter: videos up to its video limit, traces
+  # up to 25 MB, everything else 5 MB. A file over its limit is dropped from its
+  # result and recorded there; the run is still stored.
   MAX_ATTACHMENT_BYTES = 5.megabytes
+  MAX_VIDEO_BYTES = 50.megabytes
+  MAX_TRACE_BYTES = 25.megabytes
+  TRACE_CONTENT_TYPE = "application/vnd.raider.trace+zip"
   Result = Data.define(:run, :created)
 
   BACKFILL_COLUMNS = %i[repository default_branch pr_number pr_base_branch pr_head_branch pr_url].freeze
-
-  class TooLarge < StandardError; end
 
   class Invalid < StandardError
     attr_reader :details
@@ -19,6 +23,14 @@ class Ingest
     new(...).call
   end
 
+  def self.limit_for(content_type)
+    type = content_type.to_s
+    return MAX_VIDEO_BYTES if type.start_with?("video/")
+    return MAX_TRACE_BYTES if type == TRACE_CONTENT_TYPE
+
+    MAX_ATTACHMENT_BYTES
+  end
+
   def initialize(project:, payload:, files:)
     @project = project
     @raw_payload = payload
@@ -29,7 +41,6 @@ class Ingest
     data = parse
     errors = PayloadValidator.new(data, @files.keys).errors
     raise Invalid, errors if errors.any?
-    raise TooLarge if @files.values.any? { |file| file.size > MAX_ATTACHMENT_BYTES }
 
     existing = @project.runs.find_by(client_run_id: data["client_run_id"])
     return Result.new(run: existing, created: false) if existing
@@ -159,13 +170,24 @@ class Ingest
         run_id: run.id, test_case_id: case_ids.fetch(TestCase.key_for(r["file_path"], r["full_name"])),
         identifier: r["identifier"], status: r["status"], duration_ms: r["duration_ms"].to_i, attempts: attempts,
         retried_flaky: attempts > 1 && r["status"] == "passed", tags: r["tags"] || [],
-        tags_text: TestResult.tags_text_for(r["tags"]),
+        tags_text: TestResult.tags_text_for(r["tags"]), dropped_attachments: dropped_attachments(r),
         failure_message: failure["message"], exception_class: failure["exception_class"],
         backtrace: Array(failure["backtrace"]).join("\n").presence, app_frame: stored_app_frame(failure["app_frame"]),
         created_at: now, updated_at: now
       }
     end
     TestResult.insert_all(rows) if rows.any?
+  end
+
+  def dropped_attachments(result)
+    Array(result["attachments"]).select { |attachment| oversized?(attachment) }.map do |attachment|
+      { "name" => attachment["name"].to_s, "content_type" => attachment["content_type"].to_s,
+        "bytes" => @files.fetch(attachment["part"]).size, "limit" => self.class.limit_for(attachment["content_type"]) }
+    end
+  end
+
+  def oversized?(attachment)
+    @files.fetch(attachment["part"]).size > self.class.limit_for(attachment["content_type"])
   end
 
   def stored_app_frame(frame)
@@ -204,6 +226,8 @@ class Ingest
     by_identifier = run.test_results.index_by(&:identifier)
     results.each do |r|
       Array(r["attachments"]).each do |attachment|
+        next if oversized?(attachment)
+
         file = @files.fetch(attachment["part"])
         by_identifier.fetch(r["identifier"]).attachments.attach(
           io: file.respond_to?(:tempfile) ? file.tempfile : file, filename: file.original_filename,

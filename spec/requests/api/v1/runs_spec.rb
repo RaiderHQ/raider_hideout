@@ -83,11 +83,14 @@ RSpec.describe "POST /api/v1/runs", type: :request do
     expect(response.parsed_body).to eq("error" => "payload too large")
   end
 
-  it "returns 413 for oversized attachments" do
+  it "accepts a run with an oversized attachment and drops only that file" do
     stub_const("Ingest::MAX_ATTACHMENT_BYTES", 2)
     data = build_payload(results: [ build_result("attachments" => [ { "name" => "s", "part" => "att_0", "content_type" => "image/png" } ]) ])
     post_run(data, { att_0: upload_file })
-    expect(response).to have_http_status(413)
+    expect(response).to have_http_status(:created)
+    result = Run.find(response.parsed_body["run_id"]).test_results.sole
+    expect(result.attachments).to be_empty
+    expect(result.dropped_attachments.map { |d| d["name"] }).to eq([ "s" ])
   end
 
   it "accepts more than 128 attachment parts" do
