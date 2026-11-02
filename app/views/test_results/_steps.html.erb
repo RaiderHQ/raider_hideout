@@ -1,0 +1,44 @@
+<% items = result.steps["items"] %>
+<% failed = result.steps["failed"] %>
+<div class="space-y-2">
+  <p class="text-xs uppercase tracking-wider text-neutral-mid">Steps</p>
+  <% if failed %>
+    <p data-testid="steps-headline" class="text-sm font-semibold text-status-err">Failed at step <%= failed + 1 %>: <%= items[failed]["title"] %></p>
+  <% else %>
+    <p class="text-sm text-neutral-mid">Couldn't tell which step failed</p>
+  <% end %>
+  <ol class="space-y-1">
+    <% items.each_with_index do |item, index| %>
+      <% if failed.nil? %>
+        <li data-testid="step" class="flex items-baseline gap-2 px-2 py-1 text-sm">
+          <span class="w-6 text-right text-xs text-neutral-mid"><%= index + 1 %>.</span>
+          <span class="min-w-0 break-words"><%= item["title"] %></span>
+        </li>
+      <% elsif index < failed %>
+        <li data-testid="step-passed" class="flex items-center gap-2 px-2 py-1 text-sm">
+          <span class="w-6 text-right text-xs text-neutral-mid"><%= index + 1 %>.</span>
+          <%= status_dot("passed", title: "Passed") %>
+          <span class="min-w-0 break-words"><%= item["title"] %></span>
+        </li>
+      <% elsif index == failed %>
+        <li data-testid="step-failed" class="rounded-md bg-status-err-bg px-2 py-2 text-sm space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="w-6 text-right text-xs text-neutral-mid"><%= index + 1 %>.</span>
+            <%= status_dot("failed", title: "Failed") %>
+            <span class="min-w-0 break-words font-semibold"><%= item["title"] %></span>
+          </div>
+          <%= render "test_results/failure", result: result, shot: shot %>
+        </li>
+      <% else %>
+        <li data-testid="step-not-run" class="flex items-center gap-2 px-2 py-1 text-sm opacity-60">
+          <span class="w-6 text-right text-xs text-neutral-mid"><%= index + 1 %>.</span>
+          <span class="min-w-0 flex-1 break-words"><%= item["title"] %></span>
+          <span class="text-xs text-neutral-mid">Not run</span>
+        </li>
+      <% end %>
+    <% end %>
+  </ol>
+  <% if failed.nil? %>
+    <%= render "test_results/failure", result: result, shot: shot %>
+  <% end %>
+</div>
