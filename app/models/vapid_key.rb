@@ -34,7 +34,7 @@ class VapidKey < ApplicationRecord
           new_record.private_key = fresh.private_key
         end
         record.update!(public_key: fresh.public_key, private_key: fresh.private_key)
-        0
+        PushSubscription.delete_all
       end
     end
 

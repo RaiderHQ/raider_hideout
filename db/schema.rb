@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_150000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_160000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -223,6 +223,40 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_150000) do
     t.index ["slug"], name: "index_projects_on_slug", unique: true
   end
 
+  create_table "push_muted_projects", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.integer "project_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_push_muted_projects_on_project_id"
+    t.index ["user_id", "project_id"], name: "index_push_muted_projects_on_user_id_and_project_id", unique: true
+    t.index ["user_id"], name: "index_push_muted_projects_on_user_id"
+  end
+
+  create_table "push_preferences", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.boolean "default_branch_failures", default: true, null: false
+    t.boolean "rerun_results", default: true, null: false
+    t.boolean "new_flaky", default: false, null: false
+    t.boolean "gate_failures", default: false, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_push_preferences_on_user_id", unique: true
+  end
+
+  create_table "push_subscriptions", force: :cascade do |t|
+    t.integer "user_id", null: false
+    t.text "endpoint", null: false
+    t.string "p256dh"
+    t.string "auth"
+    t.string "device_label"
+    t.datetime "last_success_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["endpoint"], name: "index_push_subscriptions_on_endpoint", unique: true
+    t.index ["user_id"], name: "index_push_subscriptions_on_user_id"
+  end
+
   create_table "quarantine_events", force: :cascade do |t|
     t.integer "quarantine_id", null: false
     t.string "action", null: false
@@ -405,6 +439,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_150000) do
   add_foreign_key "organizations", "users", column: "personal_owner_id"
   add_foreign_key "personal_tokens", "users", on_delete: :cascade
   add_foreign_key "projects", "organizations"
+  add_foreign_key "push_muted_projects", "projects", on_delete: :cascade
+  add_foreign_key "push_muted_projects", "users", on_delete: :cascade
+  add_foreign_key "push_preferences", "users"
+  add_foreign_key "push_subscriptions", "users"
   add_foreign_key "quarantine_events", "quarantines", on_delete: :cascade
   add_foreign_key "quarantine_events", "users", column: "actor_id", on_delete: :nullify
   add_foreign_key "quarantines", "projects", on_delete: :cascade

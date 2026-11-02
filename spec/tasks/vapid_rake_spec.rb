@@ -21,6 +21,17 @@ RSpec.describe "hideout:vapid:rotate" do
     expect(VapidKey.current.public_key).not_to eq(old.public_key)
   end
 
+  it "deletes every subscription and prints how many devices must subscribe again" do
+    2.times do |i|
+      create(:user).push_subscriptions.create!(endpoint: "https://fcm.googleapis.com/fcm/send/#{i}",
+        p256dh: Base64.urlsafe_encode64("\x04".b + "a" * 64, padding: false), auth: Base64.urlsafe_encode64("b" * 16, padding: false))
+    end
+    task = Rake::Task["hideout:vapid:rotate"]
+    task.reenable
+    expect { task.invoke }.to output("Rotated the VAPID keys. 2 devices must turn on phone notifications again.\n").to_stdout
+    expect(PushSubscription.count).to eq(0)
+  end
+
   it "refuses to rotate when the pair comes from the environment" do
     ENV["HIDEOUT_VAPID_PUBLIC_KEY"] = "env-pub"
     ENV["HIDEOUT_VAPID_PRIVATE_KEY"] = "env-priv"

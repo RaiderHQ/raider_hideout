@@ -36,6 +36,7 @@
               <summary class="flex items-center min-h-11 cursor-pointer list-none text-neutral-dk hover:text-ruby">Account</summary>
               <div class="absolute right-0 mt-2 w-56 bg-neutral-wh rounded-md shadow-card border border-neutral-bdr py-1 z-10">
                 <%= link_to "Tokens", personal_tokens_path, class: "block min-h-11 px-4 py-3 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
+                <%= link_to "Phone notifications", phone_notifications_path, class: "block min-h-11 px-4 py-3 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
                 <%= button_to "Sign out", session_path, method: :delete, class: "block w-full min-h-11 px-4 py-3 text-left text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
               </div>
             </details>
