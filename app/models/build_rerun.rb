@@ -11,4 +11,17 @@ class BuildRerun < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :attempt_before, presence: true
   validates :message, length: { maximum: MAX_MESSAGE }, allow_nil: true
+
+  # The one time format for re-run copy: the guard line, the pending line and the record list.
+  def clock = created_at.strftime("%H:%M")
+
+  def starter_label = user&.email_address || "someone"
+
+  def outcome_copy
+    case status
+    when "pending" then "waiting for GitHub"
+    when "accepted" then "GitHub accepted"
+    else Builds::Rerun.error_copy(http_status)
+    end
+  end
 end

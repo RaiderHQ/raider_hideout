@@ -14,6 +14,7 @@
     <% if result.attempts > 1 %><span class="text-xs text-neutral-mid"><%= result.attempts %> attempts</span><% end %>
     <span class="text-xs text-neutral-mid"><%= result.duration_ms %> ms</span>
     <%= link_to "History", project_test_case_path(result.run.project, result.test_case), class: "inline-flex items-center min-h-11 md:min-h-0 text-xs text-ruby" %>
+    <% if failed && local_assigns[:rerun]&.button? %><%= button_to "Re-run failed", project_build_rerun_path(result.run.project, build), method: :post, params: { return_to: "##{dom_id(result)}" }, form: { class: "inline-flex", data: { turbo: false } }, class: "inline-flex items-center min-h-11 md:min-h-0 text-xs text-ruby cursor-pointer" %><% end %>
   </summary>
   <div class="px-4 pb-4 space-y-3">
     <% traces.each_with_index do |trace, index| %>

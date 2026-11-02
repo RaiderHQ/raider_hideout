@@ -24,7 +24,9 @@ Rails.application.routes.draw do
   post "/invitations/accept", to: "invitation_acceptances#create", as: :accept_invitation
   resources :projects, only: %i[index new create show destroy] do
     resources :api_tokens, only: %i[index create destroy]
-    resources :builds, only: %i[index show]
+    resources :builds, only: %i[index show] do
+      resource :rerun, only: :create, controller: "build_reruns"
+    end
     resources :errors, only: %i[index show]
     resources :notification_channels, path: "notifications", except: :show do
       member { post :test }

@@ -26,6 +26,7 @@
   <% if @build.quarantined_count.positive? %> · <span class="text-status-quarantine" data-testid="quarantined-count"><%= @build.quarantined_count %> quarantined</span><% end %>
   <% if @build.ci_url.to_s.match?(%r{\Ahttps?://}i) %> · <%= link_to "#{ci_provider_label(@build)} build", @build.ci_url, class: "inline-flex items-center min-h-11 md:min-h-0 text-ruby", target: "_blank", rel: "noopener noreferrer" %><% end %>
 </p>
+<%= render "builds/rerun", panel: @rerun_panel, build: @build %>
 <%= render "builds/gate", build: @build, report: @gate_report, comparison: @comparison if @gate_report.evaluated? %>
 <%= render "builds/comparison", comparison: @comparison, build: @build if @comparison %>
 <%= render "builds/error_groups", build: @build, groups: @error_groups, counts: @group_counts, failed: @failed_by_group if @group_counts.values.any? { |n| n >= 2 } %>
@@ -44,7 +45,7 @@
         <% results.each do |result| %>
           <%= render "test_results/card", result: result, shard_label: labels[result.run_id], verdict: @verdicts[result.test_case_id], open: result.id == @open_result_id,
                  group: (@error_groups[result.error_group_id] if TestResult::FAILING_STATUSES.include?(result.status) && @group_counts[result.error_group_id].to_i >= 2),
-                 group_size: @group_counts[result.error_group_id],
+                 group_size: @group_counts[result.error_group_id], rerun: @rerun_panel, build: @build,
                  tag: (failure_tag(result.test_case_id, @comparison, @verdicts, @build.comparison_branch) if result.status == "failed") %>
         <% end %>
       </div>

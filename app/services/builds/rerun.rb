@@ -22,6 +22,13 @@ module Builds
 
     def self.call(build:, user:) = new(build, user).call
 
+    # The user-facing copy for a GitHub answer: an HTTP code, :network, or nil (no answer recorded).
+    def self.error_copy(code)
+      return NETWORK if code.nil? || code == :network
+
+      COPY.fetch(code, BUSY)
+    end
+
     def initialize(build, user)
       @build = build
       @user = user
@@ -47,7 +54,7 @@ module Builds
       return refuse(NOT_RERUNNABLE) unless @build.rerunnable?
 
       pending = @build.pending_rerun
-      refuse("A re-run was already requested at #{pending.created_at.strftime('%H:%M')}.") if pending
+      refuse("A re-run was already requested at #{pending.clock}.") if pending
     end
 
     def request_rerun(rerun)
@@ -80,10 +87,10 @@ module Builds
     end
 
     def copy_for(code, attempt_before)
-      return NETWORK if code == :network
+      return self.class.error_copy(code) if code == :network
       return "Re-run requested. The result arrives as attempt #{attempt_before + 1}." if code.between?(200, 299)
 
-      COPY.fetch(code, BUSY)
+      self.class.error_copy(code)
     end
 
     def refuse(message) = Outcome.new(ok: false, message: message, rerun: nil)

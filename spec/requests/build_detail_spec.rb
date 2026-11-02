@@ -147,8 +147,8 @@ RSpec.describe "Build detail", type: :request do
     counter = ->(*, payload) { count += 1 unless %w[SCHEMA CACHE TRANSACTION].include?(payload[:name]) }
     ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { get project_build_path(project, build) }
     expect(response).to have_http_status(:ok)
-    # 14: the per-branch verdict lookup, the comparison-branch query and the gate-rule lookup add one each, per request.
-    expect(count).to be <= 14
+    # 15: the per-branch verdict lookup, the comparison-branch query, the gate-rule lookup and the re-run record list add one each, per request.
+    expect(count).to be <= 15
   end
 
   describe "re-run attempts" do
@@ -207,7 +207,7 @@ RSpec.describe "Build detail", type: :request do
     counter = ->(*, payload) { count += 1 unless %w[SCHEMA CACHE TRANSACTION].include?(payload[:name]) }
     ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { get project_build_path(project, build) }
     expect(response).to have_http_status(:ok)
-    expect(count).to be <= 14
+    expect(count).to be <= 15
   end
 
   describe "branch comparison" do

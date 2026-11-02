@@ -203,8 +203,12 @@ class Build < ApplicationRecord
   # Offered only for a GitHub Actions build that failed, whose run key parses to safe parts and
   # whose project has a token. The viewer's role is checked by the caller.
   def rerunnable?
-    provider == "github_actions" && status == "failed" && !Github::Repository.from_build(self).nil? &&
-      project.ci_access.present?
+    rerun_candidate? && project.ci_access.present?
+  end
+
+  # Everything rerunnable? checks except the token, to tell "add a token" from "nothing to offer".
+  def rerun_candidate?
+    provider == "github_actions" && status == "failed" && !Github::Repository.from_build(self).nil?
   end
 
   # A re-run still in flight (pending or accepted): no newer attempt has arrived and it is under 10 minutes old.
