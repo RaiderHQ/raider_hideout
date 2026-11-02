@@ -13,6 +13,10 @@ RSpec.describe BuildRerun do
     expect(rerun(status: "failed", http_status: nil).outcome_copy).to eq(Builds::Rerun::NETWORK)
   end
 
+  it "says no answer was recorded for a stale pending row" do
+    expect(rerun(created_at: 11.minutes.ago).outcome_copy).to eq("no answer recorded")
+  end
+
   it "names a deleted user someone and formats the clock as HH:MM" do
     record = rerun(user: nil, created_at: Time.zone.local(2026, 11, 2, 9, 5))
     expect(record.starter_label).to eq("someone")

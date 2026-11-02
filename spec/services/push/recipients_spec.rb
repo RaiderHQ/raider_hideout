@@ -87,6 +87,13 @@ RSpec.describe Push::Recipients do
       expect(described_class.call(failed_build, attempt: 2)).to eq([ [ starter_sub, %w[rerun_result failed] ], [ other_sub, %w[failed] ] ])
     end
 
+    it "goes to the starter only for the attempt their re-run produced" do
+      starter, starter_sub = subscribe_member(project)
+      rerun!(passed_build, starter)
+      expect(described_class.call(passed_build, attempt: 2)).to eq([ [ starter_sub, %w[rerun_result] ] ])
+      expect(described_class.call(passed_build, attempt: 3)).to eq([])
+    end
+
     it "respects the rerun_results switch" do
       starter, starter_sub = subscribe_member(project)
       starter.push_preference!.update!(rerun_results: false)

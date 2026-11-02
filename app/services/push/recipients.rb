@@ -44,11 +44,11 @@ module Push
 
       private
 
-      # Users whose accepted re-run request on this build preceded this attempt.
+      # Users whose accepted re-run request on this build produced this attempt.
       def rerun_starter_ids
         @rerun_starter_ids ||=
           if @build.rerun_attempt?(@attempt)
-            BuildRerun.where(build_id: @build.id, status: "accepted", attempt_before: ...@attempt).where.not(user_id: nil).pluck(:user_id).to_set
+            BuildRerun.where(build_id: @build.id, status: "accepted", attempt_before: @attempt - 1).where.not(user_id: nil).pluck(:user_id).to_set
           else
             Set.new
           end

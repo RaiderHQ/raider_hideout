@@ -39,6 +39,15 @@ RSpec.describe Builds::Rerun do
     expect(any_request).not_to have_been_requested
   end
 
+  it "keeps an accepted row accepted when something raises after GitHub answered, and the guard still blocks" do
+    stub_request(:post, url).to_return(status: 201, body: "")
+    allow_any_instance_of(described_class).to receive(:copy_for).and_raise(RuntimeError, "boom")
+    expect { call }.to raise_error(RuntimeError, "boom")
+    expect(build_record.reruns.last).to have_attributes(status: "accepted", http_status: 201)
+    allow_any_instance_of(described_class).to receive(:copy_for).and_call_original
+    expect(call.message).to match(/already requested/)
+  end
+
   it "accepts on 201, records attempt_before and uses attempt + 1 in the message" do
     stub = stub_request(:post, url).to_return(status: 201, body: "")
     outcome = call

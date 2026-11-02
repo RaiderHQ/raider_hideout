@@ -157,7 +157,7 @@ RSpec.describe "CI access", type: :request do
     {
       401 => "GitHub rejected the token. Replace it in CI access.",
       403 => "GitHub refused: the token needs Actions: Read and write for this repository.",
-      404 => "GitHub can't find this run, or the token can't see the repository.",
+      404 => "GitHub can't find this repository, or the token can't see it.",
       429 => "GitHub is busy. Try again in a minute.",
       502 => "GitHub is busy. Try again in a minute."
     }.each do |status, copy|

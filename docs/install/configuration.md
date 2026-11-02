@@ -39,7 +39,7 @@ Re-running failed builds from Hideout needs a GitHub token per project. GitHub A
 
 The token is stored encrypted (Active Record encryption, see Secrets above) and is never shown again. Replace it or remove it on the same page. Back it up with the database and `storage/hideout-secrets.yml`.
 
-Members and above then see Re-run failed on failed GitHub Actions builds. It calls GitHub's re-run failed jobs endpoint, so only the failed jobs run again, never the whole workflow. Each attempt can be re-run once in 10 minutes. The build page lists who asked, when, and what GitHub answered. The result arrives as the next attempt on the same build.
+Members and above then see Re-run failed on failed GitHub Actions builds. It calls GitHub's re-run failed jobs endpoint, so only the failed jobs run again, never the whole workflow. After GitHub accepts a re-run, that attempt can't be re-run again from Hideout for 10 minutes. The build page lists who asked, when, and what GitHub answered. The result arrives as the next attempt on the same build, and the person who started the re-run gets a push for that attempt (not for later ones).
 
 ## Email (optional)
 

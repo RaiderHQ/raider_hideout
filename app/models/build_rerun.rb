@@ -19,7 +19,7 @@ class BuildRerun < ApplicationRecord
 
   def outcome_copy
     case status
-    when "pending" then "waiting for GitHub"
+    when "pending" then created_at > Build::RERUN_GUARD.ago ? "waiting for GitHub" : "no answer recorded"
     when "accepted" then "GitHub accepted"
     else Builds::Rerun.error_copy(http_status)
     end

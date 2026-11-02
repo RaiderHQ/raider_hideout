@@ -67,7 +67,7 @@ class CiAccessesController < ApplicationController
     case status
     when 401 then "GitHub rejected the token. Replace it in CI access."
     when 403 then "GitHub refused: the token needs Actions: Read and write for this repository."
-    when 404 then "GitHub can't find this run, or the token can't see the repository."
+    when 404 then "GitHub can't find this repository, or the token can't see it."
     when 429, 500..599 then "GitHub is busy. Try again in a minute."
     when :network then "Couldn't reach GitHub."
     else "GitHub answered unexpectedly (HTTP #{status})."

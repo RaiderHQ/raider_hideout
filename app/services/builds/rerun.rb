@@ -58,21 +58,24 @@ module Builds
     end
 
     def request_rerun(rerun)
+      answered = false
       access = @build.project.ci_access
       owner, repo, run_id = Github::Repository.from_build(@build)
       response = Github::Client.new(access.token).rerun_failed_jobs(owner, repo, run_id)
+      answered = true
       status = status_for(response.status)
       message = response.message && access.redact(response.message)[0, BuildRerun::MAX_MESSAGE]
       http = response.status.is_a?(Integer) ? response.status : nil
-      rerun.update!(status: status, http_status: http, message: message)
+      # update_columns: once GitHub has answered, no validation or callback may change the verdict.
+      rerun.update_columns(status: status, http_status: http, message: message)
       Outcome.new(ok: status == "accepted", message: copy_for(response.status, rerun.attempt_before), rerun: rerun)
     rescue Github::Client::Error
       # Only a stored token that fails the format check lands here (rerunnable? already vetted
       # the key), so it is a bad credential: same copy as GitHub's 401.
-      rerun.update!(status: "failed")
+      rerun.update_columns(status: "failed")
       Outcome.new(ok: false, message: COPY.fetch(401), rerun: rerun)
     rescue StandardError
-      rerun.update_columns(status: "failed", message: nil)
+      rerun.update_columns(status: "failed", message: nil) unless answered
       raise
     end
 
