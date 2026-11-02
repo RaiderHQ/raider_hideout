@@ -36,7 +36,9 @@ RSpec.describe "test_results/_card", type: :view do
   it "offers no link for a legacy application/zip attachment" do
     result = create(:test_result, run: run, status: "failed")
     result.attachments.attach(io: StringIO.new(fixture), filename: "t.zip", content_type: "application/zip")
+    legacy = result.attachments.last
     render_card(result)
     expect(rendered).not_to include("Open trace")
+    expect(rendered).to include(attachment_path(legacy))
   end
 end

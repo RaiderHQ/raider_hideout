@@ -91,10 +91,14 @@ RSpec.describe "Trace viewer panels", type: :system do
 
   it "renders hostile error text as text" do
     data["steps"][0]["error"] = { "class" => "X", "message" => "<img src=x onerror=window.__pwned=3>" }
+    data["console"] = [{ "step_index" => 1, "level" => "error", "text" => "<img src=x onerror=window.__pwned=5>" }]
     open_json(data)
     select_step("navigate")
     expect(page).to have_css("#trace-detail", text: "<img src=x onerror=window.__pwned=3>")
     expect(page).to have_no_css("#trace-detail img[src=x]")
+    click_on "Console"
+    expect(page).to have_css("[data-testid=trace-console-row]", text: "<img src=x onerror=window.__pwned=5>")
+    expect(page).to have_no_css("#trace-console img")
     expect(page.evaluate_script("window.__pwned")).to be_nil
   end
 
@@ -104,7 +108,8 @@ RSpec.describe "Trace viewer panels", type: :system do
                           { name: "steps/0001.jpg", data: "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024 }])
     open_trace(bytes)
     select_step("navigate")
-    expect(page).to have_css("#trace-notices [data-testid=trace-error]", text: "This trace can't be opened")
+    expect(page).to have_css("#trace-notices [data-testid=trace-error]", text: "This step's file couldn't be read: entry larger than declared")
+    expect(page).not_to have_text("This trace can't be opened")
     select_step("click")
     expect(page).to have_css("#trace-network [data-testid=trace-network-row]", text: "/api")
   end

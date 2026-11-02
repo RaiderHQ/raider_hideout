@@ -87,7 +87,8 @@ export default class extends Controller {
     } catch (error) {
       if (!current()) return
       notCaptured(slot)
-      const message = error instanceof TraceError ? error.message : new TraceError("corrupt zip").message
+      const reason = error instanceof TraceError ? error.reason : "corrupt zip"
+      const message = `This step's file couldn't be read: ${reason}`
       const notice = document.createElement("p")
       notice.dataset.testid = "trace-error"
       notice.dataset.stepError = ""

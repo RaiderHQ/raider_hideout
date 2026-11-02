@@ -108,7 +108,8 @@ RSpec.describe "Trace viewer zip safety", type: :system do
                             steps: [{ index: 1, action: "click", snapshot: "steps/0001.html" }])
       open_trace(RawZip.build([entry("trace.json", trace),
                                entry("steps/0001.html", "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024)]))
-      expect(page).to have_css("[data-testid=trace-error]", text: "This trace can't be opened")
+      expect(page).to have_css("[data-testid=trace-error]", text: "This step's file couldn't be read: entry larger than declared")
+      expect(page).not_to have_text("This trace can't be opened")
       expect(page).to have_css("#trace-timeline [data-testid=trace-step]", count: 1)
     end
 
@@ -120,11 +121,17 @@ RSpec.describe "Trace viewer zip safety", type: :system do
       visit project_build_path(project, run.build)
       card = find("details", text: result.test_case.full_name)
       card.find("summary").click unless card[:open]
+      page.execute_script("window.__fromBuild = 1")
       click_on "Open trace"
       frame = find("[data-testid=trace-snapshot]")
+      expect(page.evaluate_script("window.__fromBuild")).to be_nil
       within_frame(frame) do
         expect(page.evaluate_script("getComputedStyle(document.querySelector('p')).color")).to eq("rgb(1, 2, 3)")
       end
+      page.execute_script("window.__fromViewer = 1")
+      click_on "Build ##{run.build.id}"
+      expect(page).to have_current_path(project_build_path(project, run.build))
+      expect(page.evaluate_script("window.__fromViewer")).to be_nil
     end
   end
 end

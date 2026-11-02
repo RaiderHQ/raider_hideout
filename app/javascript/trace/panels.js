@@ -45,12 +45,12 @@ export function renderTimeline(container, steps, selectedIndex, onSelect) {
   const seen = new Set()
   const row = (step) => {
     const failed = step.status === "failed"
-    const button = el("button", { testid: "trace-step", className: `text-left w-full px-2 py-1 rounded text-sm hover:bg-neutral-100 ${failed ? "text-red-700" : ""} ${step.index === selectedIndex ? "font-semibold bg-neutral-100" : ""}`, attrs: { type: "button" } })
+    const button = el("button", { testid: "trace-step", className: `text-left w-full px-2 py-1 rounded text-sm hover:bg-neutral-lt ${failed ? "text-status-err" : ""} ${step.index === selectedIndex ? "font-semibold bg-neutral-lt" : ""}`, attrs: { type: "button" } })
     if (step.index === selectedIndex) button.setAttribute("aria-current", "true")
     const parts = [str(step.action || step.kind), step.name, stepLabel(step)].filter(Boolean)
     button.append(el("span", { text: parts.join(" ") }))
     if (step.waited_ms > 0) button.append(el("span", { text: ` waited ${step.waited_ms} ms`, className: "text-neutral-mid" }))
-    if (failed) button.append(el("span", { text: " failed", testid: "trace-step-failed", className: "text-red-700" }))
+    if (failed) button.append(el("span", { text: " failed", testid: "trace-step-failed", className: "text-status-err" }))
     button.addEventListener("click", () => onSelect(step.index))
     return button
   }
@@ -103,11 +103,11 @@ export function showScreenshot(slot, url, step, previous, dpr) {
   const wrap = el("div", { className: "relative inline-block max-w-full" }, img)
   slot.replaceChildren(wrap)
   const rect = step.rect
-  if (!rect || !previous || previous.url !== step.url) return
+  if (!rect || !previous || typeof step.url !== "string" || step.url !== previous.url) return
   const place = () => {
     if (!img.naturalWidth) return
     const scale = (Number(dpr) > 0 ? Number(dpr) : 1)
-    const box = el("div", { testid: "trace-rect", className: "absolute border-2 border-red-600 pointer-events-none", attrs: { title: "element before the action" } })
+    const box = el("div", { testid: "trace-rect", className: "absolute border-2 border-status-err pointer-events-none", attrs: { title: "element before the action" } })
     box.style.left = `${(rect.x * scale / img.naturalWidth) * 100}%`
     box.style.top = `${(rect.y * scale / img.naturalHeight) * 100}%`
     box.style.width = `${(rect.width * scale / img.naturalWidth) * 100}%`
@@ -134,7 +134,7 @@ function tabPanel(container, capability, rows, showAll, onToggle, describe) {
 
 export const objects = (list) => (Array.isArray(list) ? list : []).filter((item) => item !== null && typeof item === "object" && !Array.isArray(item))
 const rowsFor = (list, selectedIndex, showAll) => objects(list).filter((row) => showAll || row.step_index === selectedIndex)
-const rowClass = "text-sm font-mono break-all border-b border-neutral-100 py-1"
+const rowClass = "text-sm font-mono break-all border-b border-neutral-bdr py-1"
 
 export function renderNetwork(container, index, selectedIndex, showAll, onToggle) {
   tabPanel(container, index.capabilities?.network, rowsFor(index.network, selectedIndex, showAll), showAll, onToggle, (row) =>
