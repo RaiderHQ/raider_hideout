@@ -3,6 +3,7 @@ class Build < ApplicationRecord
   belongs_to :baseline_build, class_name: "Build", optional: true
   has_many :runs, dependent: :destroy
   has_many :notification_deliveries, dependent: :destroy
+  has_many :reruns, class_name: "BuildRerun", dependent: :delete_all
 
   # Time attempt-N runs must stay quiet before their notification, so a re-run's late shards land first.
   ATTEMPT_QUIET_PERIOD = 2.minutes
@@ -195,6 +196,25 @@ class Build < ApplicationRecord
 
     newest = mine.map(&:flakiness_analyzed_at).max
     (mine.size >= floor && newest <= ATTEMPT_QUIET_PERIOD.ago) || newest <= ATTEMPT_FLOOR_FALLBACK.ago
+  end
+
+  RERUN_GUARD = 10.minutes
+
+  # Offered only for a GitHub Actions build that failed, whose run key parses to safe parts and
+  # whose project has a token. The viewer's role is checked by the caller.
+  def rerunnable?
+    rerun_candidate? && project.ci_access.present?
+  end
+
+  # Everything rerunnable? checks except the token, to tell "add a token" from "nothing to offer".
+  def rerun_candidate?
+    provider == "github_actions" && status == "failed" && !Github::Repository.from_build(self).nil?
+  end
+
+  # A re-run still in flight (pending or accepted): no newer attempt has arrived and it is under 10 minutes old.
+  def pending_rerun
+    reruns.where(status: %w[pending accepted], attempt_before: latest_attempt)
+          .where("created_at > ?", RERUN_GUARD.ago).order(:created_at).last
   end
 
   def gate_report

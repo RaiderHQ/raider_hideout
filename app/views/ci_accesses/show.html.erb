@@ -1,0 +1,35 @@
+<% input = "w-full rounded-md border border-neutral-bdr px-4 py-2.5 min-h-11 md:min-h-0 focus:border-ruby focus:outline-none" %>
+<% saved = @ci_access.persisted? %>
+<div class="max-w-xl">
+  <p class="text-sm text-neutral-mid mb-2"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · CI access</p>
+  <%= panel do %>
+    <h1 class="text-xl font-semibold mb-1">CI access</h1>
+    <% if saved %>
+      <p class="text-sm mb-4" data-testid="ci-token-saved">Token saved on <%= @ci_access.token_saved_at.strftime("%B %-d, %Y") %>.</p>
+    <% end %>
+    <% if @invalid %>
+      <div class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3 mb-4"><%= CiAccess::INVALID_TOKEN %></div>
+    <% end %>
+    <%= form_with scope: :ci_access, url: project_ci_access_path(current_project), method: :patch, class: "space-y-4" do |f| %>
+      <div>
+        <%= f.label :token, "GitHub token", class: "block text-sm font-medium mb-1" %>
+        <%= f.password_field :token, value: nil, autocomplete: "off", required: true, class: input %>
+        <p class="text-xs text-neutral-mid mt-1">A fine-grained token for this repository with Actions: Read and write and Metadata: Read.</p>
+      </div>
+      <%= f.submit(saved ? "Replace token" : "Save token", class: button_classes(:primary, extra: "min-h-11 md:min-h-0")) %>
+    <% end %>
+    <% if saved %>
+      <div class="flex flex-wrap gap-3 mt-4">
+        <%= button_to "Test connection", test_project_ci_access_path(current_project), method: :post, class: button_classes(:secondary, extra: "min-h-11 md:min-h-0") %>
+        <%= button_to "Remove token", project_ci_access_path(current_project), method: :delete, class: button_classes(:danger, extra: "min-h-11 md:min-h-0"),
+              form: { data: { turbo_confirm: "Remove the GitHub token? Re-runs from Hideout will stop working." } } %>
+      </div>
+      <% if @ci_access.checked_at %>
+        <p class="text-sm mt-4 <%= @ci_access.check_ok ? "text-status-ok" : "text-status-err" %>" data-testid="ci-check">
+          <%= @ci_access.check_message %>
+          <span class="text-xs text-neutral-mid">(<%= @ci_access.checked_at.strftime("%B %-d, %Y %H:%M") %>)</span>
+        </p>
+      <% end %>
+    <% end %>
+  <% end %>
+</div>

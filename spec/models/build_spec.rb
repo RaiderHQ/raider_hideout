@@ -417,3 +417,56 @@ RSpec.describe Build do
     end
   end
 end
+
+RSpec.describe Build, "re-run" do
+  include ActiveSupport::Testing::TimeHelpers
+  let(:project) { create(:project) }
+  let!(:access) { CiAccess.create!(project: project, token: "ghp_#{'a' * 36}", token_saved_at: Time.current) }
+  let(:build_record) do
+    create(:build, project: project, provider: "github_actions", status: "failed", ci_run_key: "github_actions:octo/hello:123")
+  end
+
+  describe "#rerunnable?" do
+    it "is true for a failed GitHub Actions build with a parseable key and a token" do
+      expect(build_record).to be_rerunnable
+    end
+
+    it "is false without a key, with a bad key, another provider, a passed build or no token" do
+      expect(build_record.tap { |b| b.ci_run_key = nil }).not_to be_rerunnable
+      expect(build_record.tap { |b| b.ci_run_key = "github_actions:octo/..:123" }).not_to be_rerunnable
+      expect(build_record.tap { |b| b.ci_run_key = "github_actions:octo/hello:#{'1' * 21}" }).not_to be_rerunnable
+      expect(create(:build, project: project, provider: "azure", status: "failed", ci_run_key: "github_actions:octo/hello:5")).not_to be_rerunnable
+      expect(create(:build, project: project, provider: "github_actions", status: "passed", ci_run_key: "github_actions:octo/hello:6")).not_to be_rerunnable
+      access.destroy
+      expect(Build.find(build_record.id)).not_to be_rerunnable
+    end
+  end
+
+  describe "#pending_rerun" do
+    def rerun(attrs = {})
+      build_record.reruns.create!({ attempt_before: 1, status: "accepted" }.merge(attrs))
+    end
+
+    it "returns a fresh accepted re-run for the current attempt" do
+      expect(rerun).to eq(build_record.pending_rerun)
+    end
+
+    it "returns a pending one too" do
+      expect(rerun(status: "pending")).to eq(build_record.pending_rerun)
+    end
+
+    it "ignores rejected, failed, old and superseded ones" do
+      rerun(status: "rejected")
+      rerun(status: "failed")
+      rerun(created_at: 11.minutes.ago)
+      rerun(attempt_before: 0)
+      expect(build_record.pending_rerun).to be_nil
+    end
+
+    it "is cleared once latest_attempt moves" do
+      rerun
+      build_record.update!(latest_attempt: 2)
+      expect(build_record.pending_rerun).to be_nil
+    end
+  end
+end

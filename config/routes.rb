@@ -24,12 +24,17 @@ Rails.application.routes.draw do
   post "/invitations/accept", to: "invitation_acceptances#create", as: :accept_invitation
   resources :projects, only: %i[index new create show destroy] do
     resources :api_tokens, only: %i[index create destroy]
-    resources :builds, only: %i[index show]
+    resources :builds, only: %i[index show] do
+      resource :rerun, only: :create, controller: "build_reruns"
+    end
     resources :errors, only: %i[index show]
     resources :notification_channels, path: "notifications", except: :show do
       member { post :test }
     end
     resource :gate, only: %i[show update], controller: "gate_rules"
+    resource :ci_access, only: %i[show update destroy], path: "ci", controller: "ci_accesses" do
+      post :test
+    end
     resources :runs, only: %i[index show]
     resources :test_cases, only: :show do
       resources :quarantines, only: :create

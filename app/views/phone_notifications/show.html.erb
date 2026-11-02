@@ -39,6 +39,8 @@
       <label class="flex items-center gap-3 min-h-11 text-sm"><%= f.check_box :default_branch_failures, checked: @preference.default_branch_failures, class: "h-5 w-5" %> Failures on a project's default branch</label>
       <label class="flex items-center gap-3 min-h-11 text-sm"><%= f.check_box :new_flaky, checked: @preference.new_flaky, class: "h-5 w-5" %> New flaky tests</label>
       <label class="flex items-center gap-3 min-h-11 text-sm"><%= f.check_box :gate_failures, checked: @preference.gate_failures, class: "h-5 w-5" %> Quality gate failures</label>
+      <label class="flex items-center gap-3 min-h-11 text-sm"><%= f.check_box :rerun_results, checked: @preference.rerun_results, class: "h-5 w-5" %> Re-run results</label>
+      <p class="text-xs text-neutral-mid ml-8 mb-2">When a re-run you started finishes.</p>
     </div>
   <% end %>
   <%= panel(extra: "mb-6") do %>

@@ -20,6 +20,7 @@ class BuildsController < ApplicationController
     @comparison = Builds::Comparison.new(@build) if @build.ready_to_notify? && @build.baseline_assigned_at && !@build.results_expired?
     @gate_report = @build.gate_report
     @gate_rule_enabled = current_project.gate_enabled?
+    @rerun_panel = Builds::RerunPanel.new(@build, role_at_least: method(:role_at_least?))
   end
 
   private

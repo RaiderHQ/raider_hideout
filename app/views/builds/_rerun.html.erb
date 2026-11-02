@@ -1,0 +1,21 @@
+<%# panel: Builds::RerunPanel for this build and viewer. %>
+<% case panel.state %>
+<% when :button %>
+  <div class="mb-4" data-testid="rerun">
+    <%= button_to "Re-run failed", project_build_rerun_path(current_project, build), method: :post, form: { id: "build-rerun-form", data: { turbo: false } },
+          class: "inline-flex items-center justify-center min-h-11 md:min-h-0 px-4 py-2 rounded-md bg-ruby text-neutral-wh text-sm font-medium cursor-pointer" %>
+  </div>
+<% when :pending %>
+  <p class="mb-4 text-sm text-neutral-dark break-words" data-testid="rerun-pending">Re-run requested by <%= panel.pending.starter_label %> at <%= panel.pending.clock %>.</p>
+<% when :add_token %>
+  <p class="mb-4 text-sm"><%= link_to "Add a GitHub token in CI access first.", project_ci_access_path(current_project), class: "inline-flex items-center min-h-11 md:min-h-0 text-ruby" %></p>
+<% when :ask_admin %>
+  <p class="mb-4 text-sm text-neutral-mid">Ask an admin to add a GitHub token in CI access.</p>
+<% end %>
+<% if panel.records.any? %>
+  <ul class="mb-4 space-y-1 text-xs text-neutral-mid" data-testid="rerun-records">
+    <% panel.records.each do |rerun| %>
+      <li class="break-words">Re-run requested by <%= rerun.starter_label %> at <%= rerun.clock %> — <%= rerun.outcome_copy %></li>
+    <% end %>
+  </ul>
+<% end %>

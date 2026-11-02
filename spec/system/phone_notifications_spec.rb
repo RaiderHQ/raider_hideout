@@ -105,6 +105,19 @@ RSpec.describe "Phone notifications", type: :system do
     end
   end
 
+  it "shows and saves the re-run results switch" do
+    fake_push_service
+    sign_in_as(user)
+    visit phone_notifications_path
+    expect(page).to have_content("When a re-run you started finishes.")
+    expect(page).to have_checked_field("Re-run results")
+    uncheck "Re-run results"
+    click_on "Save"
+    expect(page).to have_content("Phone notification settings saved.")
+    expect(page).to have_unchecked_field("Re-run results")
+    expect(user.push_preference!.rerun_results).to be(false)
+  end
+
   it "reuses a subscription made with this server's key: no unsubscribe, one device after two taps" do
     fake_push_service(existing: :same)
     sign_in_as(user)
