@@ -12,7 +12,7 @@ class Run < ApplicationRecord
   def self.in_shard_order(runs)
     runs.sort_by do |run|
       prefix, index = run.shard_label.to_s.split("#", 2)
-      [ run.shard_label.nil? ? 1 : 0, prefix.to_s, index.to_s.split(".").map(&:to_i), run.shard_index || 0, run.id ]
+      [ run.attempt, run.shard_label.nil? ? 1 : 0, prefix.to_s, index.to_s.split(".").map(&:to_i), run.shard_index || 0, run.id ]
     end
   end
 

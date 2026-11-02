@@ -1,0 +1,10 @@
+<% if fixed.any? %>
+  <details class="mb-6 rounded-md border border-neutral-bdr bg-neutral-wh px-4 py-3" data-testid="fixed-by-rerun">
+    <summary class="cursor-pointer text-sm font-medium">Fixed by re-run</summary>
+    <ul class="mt-2 space-y-1 text-sm">
+      <% fixed.each do |result, attempt| %>
+        <li><span class="font-mono"><%= result.test_case.full_name %></span> <span class="text-xs text-neutral-mid">· attempt <%= attempt %></span></li>
+      <% end %>
+    </ul>
+  </details>
+<% end %>

@@ -174,6 +174,46 @@ RSpec.describe Build do
     end
   end
 
+  describe "#fixed_by_rerun query count and #attempt_summaries" do
+    let(:project) { create(:project) }
+    let(:record) { create(:build, project: project, ci_run_key: "github_actions:a/b:1", ci_url: "https://ci.example/run/1") }
+
+    def queries
+      n = 0
+      sub = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, p| n += 1 unless p[:name] == "SCHEMA" }
+      yield
+      n
+    ensure
+      ActiveSupport::Notifications.unsubscribe(sub)
+    end
+
+    it "uses a constant number of queries however many tests were fixed" do
+      first = create(:run, project: project, build: record, attempt: 1, shard_label: "t#1", status: "failed")
+      second = create(:run, project: project, build: record, attempt: 2, shard_label: "t#1")
+      counts = [ 2, 12 ].map do |n|
+        n.times do |i|
+          kase = create(:test_case, project: project, full_name: "Fix #{n}-#{i}", file_path: "f#{n}.rb")
+          create(:test_result, run: first, test_case: kase, status: "failed", superseded: true)
+          create(:test_result, run: second, test_case: kase, status: "passed")
+        end
+        found = nil
+        count = queries { found = record.fixed_by_rerun }
+        expect(found.size).to eq(n == 2 ? 2 : 14)
+        count
+      end
+      expect(counts.last).to eq(counts.first)
+    end
+
+    it "summarises each attempt from the runs" do
+      create(:run, project: project, build: record, attempt: 1, status: "failed", passed_count: 3, failed_count: 1, total_count: 4, flakiness_analyzed_at: 1.hour.ago)
+      create(:run, project: project, build: record, attempt: 2, status: "passed", passed_count: 1, total_count: 1, flakiness_analyzed_at: 1.hour.ago)
+      one, two = record.reload.attempt_summaries
+      expect(one).to have_attributes(attempt: 1, status: "failed", run_count: 1, ci_url: "https://ci.example/run/1/attempts/1")
+      expect(one.counts).to include(passed: 3, failed: 1, total: 4)
+      expect(two).to have_attributes(attempt: 2, status: "passed", ready: true)
+    end
+  end
+
   it "computes pass rate from passed, failed and quarantined only" do
     expect(build(:build, passed_count: 3, failed_count: 1, skipped_count: 9).pass_rate).to eq(75)
     expect(build(:build, passed_count: 1, failed_count: 0, quarantined_count: 3).pass_rate).to eq(25)

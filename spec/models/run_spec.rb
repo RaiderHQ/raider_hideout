@@ -13,4 +13,12 @@ RSpec.describe Run do
                               metadata: { "name" => "screenshot" })
     expect(result.attachment_name(result.attachments.first)).to eq("screenshot")
   end
+
+  it "sorts in_shard_order by attempt first" do
+    b = create(:build)
+    late = create(:run, project: b.project, build: b, attempt: 1, shard_label: "z#9")
+    early = create(:run, project: b.project, build: b, attempt: 1, shard_label: "a#1")
+    rerun = create(:run, project: b.project, build: b, attempt: 2, shard_label: "a#1")
+    expect(Run.in_shard_order([ rerun, late, early ])).to eq([ early, late, rerun ])
+  end
 end

@@ -9,6 +9,7 @@ class BuildsController < ApplicationController
   def show
     @build = current_project.builds.find(params[:id])
     @runs = Run.in_shard_order(@build.runs.to_a)
+    @rerun_attempts = @build.ci_run_key.present? && @build.latest_attempt > 1
     results = @build.effective_results
                         .includes(:test_case, { run: :project }, attachments_attachments: :blob)
     @groups = TestResult.grouped_for_display(results)

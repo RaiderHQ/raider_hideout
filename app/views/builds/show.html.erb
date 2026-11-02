@@ -28,7 +28,11 @@
 <%= render "builds/gate", build: @build, report: @gate_report, comparison: @comparison if @gate_report.evaluated? %>
 <%= render "builds/comparison", comparison: @comparison, build: @build if @comparison %>
 <%= render "builds/error_groups", build: @build, groups: @error_groups, counts: @group_counts, failed: @failed_by_group if @group_counts.values.any? { |n| n >= 2 } %>
-<%= render "builds/shard_strip", runs: @runs, project: current_project %>
+<% if @rerun_attempts %>
+  <%= render "builds/attempts", summaries: @build.attempt_summaries %>
+  <%= render "builds/fixed_by_rerun", fixed: @build.fixed_by_rerun %>
+<% end %>
+<%= render "builds/shard_strip", runs: @runs, project: current_project, show_attempts: @rerun_attempts %>
 <% labels = @runs.size > 1 ? @runs.to_h { |run| [run.id, run.shard_label.presence || "Run ##{run.id}"] } : {} %>
 <%= results_expired_notice(@runs) %>
 <div data-controller="lightbox" class="space-y-6">

@@ -52,14 +52,33 @@ class Build < ApplicationRecord
   end
 
   # Effective passed results whose test failed in an earlier attempt: [[result, attempt that fixed it]].
+  # A fixed slot is the same test in the same shard_label; four queries however many tests were fixed.
   def fixed_by_rerun
-    superseded_failed = TestResult.where(run_id: runs.select(:id), superseded: true, status: "failed")
+    failed_slots = TestResult.where(run_id: runs.select(:id), superseded: true, status: "failed").joins(:run)
+                             .pluck(:test_case_id, Arel.sql("COALESCE(runs.shard_label, '')")).to_set
+    return [] if failed_slots.empty?
+
     TestResult.where(run_id: runs.select(:id), superseded: false, status: "passed")
-              .where(test_case_id: superseded_failed.select(:test_case_id))
-              .joins(:test_case, :run).includes(:test_case, :run)
+              .where(test_case_id: failed_slots.map(&:first).uniq)
+              .joins(:test_case).includes(:test_case, :run)
               .order("test_cases.full_name", "test_results.id")
-              .select { |result| fixed_slot?(result, superseded_failed) }
+              .select { |result| failed_slots.include?([ result.test_case_id, result.run.shard_label.to_s ]) }
               .map { |result| [ result, result.run.attempt ] }
+  end
+
+  AttemptSummary = Data.define(:attempt, :status, :ready, :run_count, :counts, :created_at, :ci_url)
+
+  # One summary per attempt, oldest first, built from the runs (no per-attempt queries when loaded).
+  def attempt_summaries
+    all_runs = runs.to_a
+    all_runs.group_by(&:attempt).sort.map do |attempt, group|
+      counts = group.map { |run| Api::V1::BuildPresenter.counts(run) }.reduce { |sum, one| sum.merge(one) { |_k, a, b| a + b } }
+      AttemptSummary.new(
+        attempt: attempt, status: group.any? { |run| run.status == "failed" } ? "failed" : "passed",
+        ready: attempt_ready?(attempt), run_count: group.size, counts: counts,
+        created_at: group.map(&:created_at).min, ci_url: ci_url.present? ? "#{ci_url}/attempts/#{attempt}" : nil
+      )
+    end
   end
 
   def recompute!
@@ -152,11 +171,12 @@ class Build < ApplicationRecord
   def attempt_ready?(attempt)
     return ready_to_notify? if attempt <= first_attempt
 
-    mine = runs.where(attempt: attempt)
-    floor = [ 1, runs.where(attempt: attempt - 1, status: "failed").count ].max
-    return false if mine.count < floor || mine.where(flakiness_analyzed_at: nil).exists?
+    pair = runs.loaded? ? runs.to_a : runs.where(attempt: [ attempt - 1, attempt ]).to_a
+    mine = pair.select { |run| run.attempt == attempt }
+    floor = [ 1, pair.count { |run| run.attempt == attempt - 1 && run.status == "failed" } ].max
+    return false if mine.size < floor || mine.any? { |run| run.flakiness_analyzed_at.nil? }
 
-    mine.maximum(:flakiness_analyzed_at) <= ATTEMPT_QUIET_PERIOD.ago
+    mine.map(&:flakiness_analyzed_at).max <= ATTEMPT_QUIET_PERIOD.ago
   end
 
   def gate_report
@@ -196,11 +216,6 @@ class Build < ApplicationRecord
 
     first = runs.map(&:attempt).min || 1
     runs.count { |run| run.attempt == first }
-  end
-
-  def fixed_slot?(result, superseded_failed)
-    superseded_failed.joins(:run).where(test_case_id: result.test_case_id)
-                     .where("COALESCE(runs.shard_label, '') = ?", result.run.shard_label.to_s).exists?
   end
 
   def recomputed_status(failed, run_count, expected)
