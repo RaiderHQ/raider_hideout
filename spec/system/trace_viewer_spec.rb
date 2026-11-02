@@ -121,16 +121,21 @@ RSpec.describe "Trace viewer panels", type: :system do
     expect(page).to have_css("#trace-console", text: "Nothing during this step")
   end
 
-  it "has no horizontal scroll at phone width" do
-    window = Capybara.current_session.current_window
-    original = window.size
+  it "does not overflow horizontally at phone width" do
+    cdp = page.driver.browser
     begin
-      window.resize_to(375, 800)
+      cdp.execute_cdp("Emulation.setDeviceMetricsOverride", width: 375, height: 800, deviceScaleFactor: 1, mobile: false)
       open_trace(file_fixture("trace-v1.zip").binread)
       expect(page).to have_css("[data-testid=trace-step]", minimum: 1)
-      expect(page.evaluate_script("document.documentElement.scrollWidth <= document.documentElement.clientWidth")).to be(true)
+      expect(page.evaluate_script("document.documentElement.clientWidth")).to be <= 375
+      root = "document.querySelector('[data-controller=trace-viewer]')"
+      expect(page.evaluate_script("#{root}.scrollWidth <= #{root}.clientWidth")).to be(true)
+      expect(page.evaluate_script("#{root}.getBoundingClientRect().right <= document.documentElement.clientWidth")).to be(true)
+      %w[#trace-timeline #trace-detail #trace-network #trace-console].each do |id|
+        expect(page.evaluate_script("(e => e.scrollWidth <= e.clientWidth)(document.querySelector('#{id}'))")).to be(true), "#{id} overflows"
+      end
     ensure
-      window.resize_to(*original)
+      cdp.execute_cdp("Emulation.clearDeviceMetricsOverride")
     end
   end
 end
