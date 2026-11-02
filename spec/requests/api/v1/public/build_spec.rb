@@ -137,6 +137,21 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds/:id", type: :request d
     end
   end
 
+  it "includes comparisons on a failure that has them" do
+    build = create(:build, project: project, status: "failed")
+    run = create(:run, project: project, build: build)
+    comparisons = [ { "name" => "home", "status" => "failed", "baseline" => "b.png", "diff_pixels" => 3, "diff_ratio" => 0.5,
+                      "threshold" => 0.2, "max_diff_pixels" => 0, "max_diff_ratio" => nil,
+                      "expected_size" => [ 1, 2 ], "actual_size" => [ 1, 2 ] } ]
+    create(:test_result, run: run, test_case: login, status: "failed", failure_message: "boom", comparisons: comparisons)
+    create(:test_result, run: run, test_case: checkout, status: "failed", failure_message: "bang")
+
+    failures = fetch(build.id)["failures"].index_by { |failure| failure["full_name"] }
+
+    expect(failures["Login works"]["comparisons"]).to eq(comparisons)
+    expect(failures["Checkout pays"]).not_to have_key("comparisons")
+  end
+
   it "includes recorded steps on a failure that has them" do
     build = create(:build, project: project, status: "failed")
     run = create(:run, project: project, build: build)

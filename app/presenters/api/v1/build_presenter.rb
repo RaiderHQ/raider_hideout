@@ -89,6 +89,7 @@ module Api
           message: clip(result.failure_message, FAILURE_MESSAGE_LIMIT), error_group_id: result.error_group_id,
           attempts: result.attempts, app_frame: result.app_frame.presence || Failures::Signature.fallback_frame(result.backtrace)
         }.merge(result.steps.present? ? { steps: result.steps } : {})
+         .merge(result.comparisons.present? ? { comparisons: result.comparisons } : {})
       end
 
       def shards

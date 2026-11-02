@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "client_run_id": "5f7ed4ff-1284-44c2-b321-64d395022c40",
+  "run": {
+    "started_at": "2026-11-02T15:35:13.243Z",
+    "finished_at": "2026-11-02T15:35:24.877Z",
+    "environment": {
+      "ruby": "3.4.12",
+      "os": "darwin25"
+    }
+  },
+  "results": [
+    {
+      "identifier": "./spec/shot_spec.rb[1:1]",
+      "full_name": "Screenshot comparison matches home",
+      "file_path": "spec/shot_spec.rb",
+      "line_number": 6,
+      "status": "failed",
+      "duration_ms": 11591,
+      "attempts": 1,
+      "tags": [],
+      "failure": {
+        "message": "screenshots/baselines/chrome/home.png: 1797705 pixels (99.93%) differ (allowed: 0 pixels, threshold 0.2)",
+        "exception_class": "ScreenshotHelper::Mismatch",
+        "backtrace": [
+          "helpers/screenshot_helper.rb:384:in 'ScreenshotHelper::Comparison#finish'",
+          "helpers/screenshot_helper.rb:363:in 'ScreenshotHelper::Comparison#compare'",
+          "helpers/screenshot_helper.rb:342:in 'ScreenshotHelper::Comparison#call'",
+          "helpers/screenshot_helper.rb:460:in 'ScreenshotHelper#match_screenshot'",
+          "spec/shot_spec.rb:9:in 'block (2 levels) in <top (required)>'"
+        ],
+        "app_frame": "helpers/screenshot_helper.rb:384:in 'ScreenshotHelper::Comparison#finish'"
+      },
+      "comparisons": [
+        {
+          "name": "home",
+          "status": "failed",
+          "baseline": "screenshots/baselines/chrome/home.png",
+          "diff_pixels": 1797705,
+          "diff_ratio": 0.9992579375667022,
+          "threshold": 0.2,
+          "max_diff_pixels": 0,
+          "max_diff_ratio": null,
+          "expected_size": [
+            1920,
+            937
+          ],
+          "actual_size": [
+            1920,
+            937
+          ]
+        }
+      ],
+      "attachments": [
+        {
+          "name": "comparison:home:expected",
+          "content_type": "image/png",
+          "path": "attachments/0-expected.png"
+        },
+        {
+          "name": "comparison:home:actual",
+          "content_type": "image/png",
+          "path": "attachments/1-actual.png"
+        },
+        {
+          "name": "comparison:home:diff",
+          "content_type": "image/png",
+          "path": "attachments/2-diff.png"
+        },
+        {
+          "name": "screenshot",
+          "content_type": "image/png",
+          "path": "attachments/3-screenshot.png"
+        }
+      ]
+    }
+  ]
+}

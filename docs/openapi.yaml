@@ -602,6 +602,8 @@ components:
           type: [string, "null"]
         steps:
           $ref: "#/components/schemas/FailureSteps"
+        comparisons:
+          $ref: "#/components/schemas/FailureComparisons"
     FailureSteps:
       description: >-
         A recorded test's steps and the failed one. Present only when raider_reporter could map the failure
@@ -630,6 +632,57 @@ components:
           description: 0-based index into items of the failed step; null when the failure was outside every step.
           type: [integer, "null"]
           minimum: 0
+    FailureComparisons:
+      description: >-
+        Screenshot comparisons of a failed test (raider_reporter 0.14+), already validated: at most 50 entries,
+        failed ones first. Absent when the test recorded none. Any field the reporter sent malformed is null.
+      type: array
+      minItems: 1
+      maxItems: 50
+      items:
+        type: object
+        additionalProperties: false
+        required: [name, status, baseline, diff_pixels, diff_ratio, threshold, max_diff_pixels, max_diff_ratio, expected_size, actual_size]
+        properties:
+          name:
+            type: string
+            maxLength: 100
+            pattern: '^[A-Za-z0-9_/-]+$'
+          status:
+            type: string
+            enum: [passed, failed, created, updated]
+          baseline:
+            type: [string, "null"]
+            maxLength: 300
+          diff_pixels:
+            type: [integer, "null"]
+            minimum: 0
+          diff_ratio:
+            type: [number, "null"]
+            minimum: 0
+          threshold:
+            type: [number, "null"]
+            minimum: 0
+          max_diff_pixels:
+            type: [integer, "null"]
+            minimum: 0
+          max_diff_ratio:
+            type: [number, "null"]
+            minimum: 0
+          expected_size:
+            type: [array, "null"]
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+              minimum: 0
+          actual_size:
+            type: [array, "null"]
+            minItems: 2
+            maxItems: 2
+            items:
+              type: integer
+              minimum: 0
     Shard:
       type: object
       additionalProperties: false
@@ -702,6 +755,8 @@ components:
           type: [string, "null"]
         steps:
           $ref: "#/components/schemas/FailureSteps"
+        comparisons:
+          $ref: "#/components/schemas/FailureComparisons"
         fixed_in_attempt:
           type: integer
           minimum: 2

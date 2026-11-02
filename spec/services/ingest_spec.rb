@@ -659,4 +659,37 @@ RSpec.describe Ingest do
       expect(result.run.test_results.find_by(status: "failed").steps).to be_nil
     end
   end
+
+  describe "screenshot comparisons" do
+    let(:dir) { Rails.root.join("spec/fixtures/files/payloads/comparisons") }
+    let(:data) do
+      JSON.parse(dir.join("run.json").read).tap do |d|
+        d["results"].first["attachments"].each_with_index { |a, i| a["part"] = "att_#{i}" }
+      end
+    end
+    let(:files) do
+      data["results"].first["attachments"].to_h do |a|
+        [ a["part"], upload_file(File.basename(a["path"]), dir.join(a["path"]).binread, a["content_type"]) ]
+      end
+    end
+
+    it "stores the comparisons and the images of a failed result" do
+      result = ingest(data, files).run.test_results.find_by(status: "failed")
+      expect(result.comparisons).to eq(data["results"].first["comparisons"])
+      expect(result.attachments.map { result.attachment_name(_1) })
+        .to match_array(%w[comparison:home:expected comparison:home:actual comparison:home:diff screenshot])
+    end
+
+    it "does not store comparisons on a passed result" do
+      data["results"].first["status"] = "passed"
+      expect(ingest(data, files).run.test_results.sole.comparisons).to be_nil
+    end
+
+    it "keeps the run when comparisons are malformed" do
+      data["results"].first["comparisons"] = "x"
+      result = ingest(data, files)
+      expect(result.created).to be(true)
+      expect(result.run.test_results.sole.comparisons).to be_nil
+    end
+  end
 end

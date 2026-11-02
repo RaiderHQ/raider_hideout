@@ -215,6 +215,7 @@ class Ingest
         retried_flaky: attempts > 1 && r["status"] == "passed", tags: r["tags"] || [],
         tags_text: TestResult.tags_text_for(r["tags"]), dropped_attachments: dropped_attachments(r),
         steps: failing ? TestResult.normalized_steps(r["steps"]) : nil,
+        comparisons: failing ? TestResult.normalized_comparisons(r["comparisons"]) : nil,
         failure_message: failure["message"], exception_class: failure["exception_class"],
         backtrace: Array(failure["backtrace"]).join("\n").presence, app_frame: stored_app_frame(failure["app_frame"]),
         created_at: now, updated_at: now

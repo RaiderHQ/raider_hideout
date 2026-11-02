@@ -17,6 +17,71 @@ RSpec.describe TestResult do
     expect(grouped.first.last.map { _1.test_case.full_name }).to eq([ "z broke", "c held", "a fine" ])
   end
 
+  describe ".normalized_comparisons" do
+    let(:fixture) { JSON.parse(file_fixture("payloads/comparisons/run.json").read)["results"].first["comparisons"].first }
+    let(:entry) { fixture.dup }
+
+    def normalize(*entries) = TestResult.normalized_comparisons(entries)
+
+    it "round-trips the reporter's entry unchanged" do
+      expect(TestResult.normalized_comparisons([ fixture ])).to eq([ fixture ])
+    end
+
+    it "is nil for a non-Array or an empty Array" do
+      expect(TestResult.normalized_comparisons("x")).to be_nil
+      expect(TestResult.normalized_comparisons({ "name" => "home" })).to be_nil
+      expect(TestResult.normalized_comparisons(nil)).to be_nil
+      expect(TestResult.normalized_comparisons([])).to be_nil
+    end
+
+    it "drops entries that are not usable" do
+      bad = [ "x", entry.merge("status" => "weird"), entry.merge("name" => 7), entry.merge("name" => "../x"),
+              entry.merge("name" => "a b"), entry.merge("name" => "<script>"), entry.merge("name" => "a" * 101) ]
+      expect(normalize(*bad)).to be_nil
+      expect(normalize(*bad, entry)).to eq([ fixture ])
+    end
+
+    it "accepts a name of exactly 100 characters" do
+      expect(normalize(entry.merge("name" => "a/b-c_" + "a" * 94)).size).to eq(1)
+    end
+
+    {
+      "diff_pixels" => [ -1, 1.5, "3" ], "max_diff_pixels" => [ -1, 2.5 ],
+      "diff_ratio" => [ Float::NAN, Float::INFINITY, -0.1, "0.1" ], "threshold" => [ Float::NAN, "0.2" ],
+      "max_diff_ratio" => [ "0.1", Float::INFINITY ],
+      "expected_size" => [ [ 1, "x" ], [ 1, 2, 3 ], [ -1, 2 ], [ 1.5, 2 ], "1x2" ],
+      "actual_size" => [ [ 1, 2, 3 ], [ 1 ], nil ],
+      "baseline" => [ "a" * 301, 5 ]
+    }.each do |field, values|
+      values.each do |value|
+        it "nils #{field} for #{value.inspect.first(30)}" do
+          out = normalize(entry.merge(field => value)).first
+          expect(out[field]).to be_nil
+          expect(out["name"]).to eq("home")
+        end
+      end
+    end
+
+    it "keeps zero values, integer ratios and a 300-character baseline" do
+      out = normalize(entry.merge("diff_pixels" => 0, "diff_ratio" => 0, "baseline" => "b" * 300)).first
+      expect(out).to include("diff_pixels" => 0, "diff_ratio" => 0, "baseline" => "b" * 300)
+    end
+
+    it "drops unknown keys and always returns the full key set" do
+      out = normalize(entry.merge("extra" => 1)).first
+      expect(out).not_to have_key("extra")
+      expect(normalize({ "name" => "x", "status" => "passed" }).first.keys).to match_array(fixture.keys)
+    end
+
+    it "keeps the first 50, failed entries first, otherwise in order" do
+      entries = Array.new(60) { |i| entry.merge("name" => "n#{i}", "status" => i >= 55 ? "failed" : "passed") }
+      names = normalize(*entries).map { _1["name"] }
+      expect(names.size).to eq(50)
+      expect(names.first(5)).to eq(%w[n55 n56 n57 n58 n59])
+      expect(names.drop(5)).to eq((0...45).map { "n#{_1}" })
+    end
+  end
+
   describe ".normalized_steps" do
     let(:items) { [ { "id" => "s1", "title" => "Open" }, { "id" => "s2", "title" => "Click \"Save\"" } ] }
 
