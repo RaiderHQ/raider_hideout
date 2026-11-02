@@ -91,3 +91,5 @@ group :test do
   gem "raider_reporter", "~> 0.7"
   gem "json_schemer", "~> 2.5"
 end
+
+gem "web-push", "~> 3.1"
