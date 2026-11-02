@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_070000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -85,9 +85,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_070000) do
     t.string "gate_status"
     t.text "gate_result"
     t.datetime "gate_evaluated_at"
+    t.string "ci_run_key"
+    t.integer "latest_attempt", default: 1, null: false
+    t.integer "gate_attempt"
     t.index ["baseline_build_id"], name: "index_builds_on_baseline_build_id"
     t.index ["project_id", "branch", "created_at"], name: "index_builds_on_project_id_and_branch_and_created_at"
     t.index ["project_id", "build_key"], name: "index_builds_on_project_id_and_build_key", unique: true
+    t.index ["project_id", "ci_run_key"], name: "index_builds_on_project_id_and_ci_run_key", unique: true, where: "ci_run_key IS NOT NULL"
     t.index ["project_id", "pr_number"], name: "index_builds_on_project_id_and_pr_number"
     t.index ["project_id"], name: "index_builds_on_project_id"
   end
@@ -178,8 +182,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_070000) do
     t.datetime "sent_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "attempt", default: 1, null: false
     t.index ["build_id"], name: "index_notification_deliveries_on_build_id"
-    t.index ["notification_channel_id", "build_id"], name: "index_notification_deliveries_once_per_build", unique: true, where: "kind = 'build'"
+    t.index ["notification_channel_id", "build_id", "attempt"], name: "index_notification_deliveries_once_per_build", unique: true, where: "kind = 'build'"
     t.index ["notification_channel_id"], name: "index_notification_deliveries_on_notification_channel_id"
   end
 
@@ -276,6 +281,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_070000) do
     t.datetime "attachments_purged_at"
     t.datetime "results_purged_at"
     t.integer "quarantined_count", default: 0, null: false
+    t.integer "attempt", default: 1, null: false
+    t.index ["build_id", "attempt"], name: "index_runs_on_build_id_and_attempt"
     t.index ["build_id"], name: "index_runs_on_build_id"
     t.index ["created_at"], name: "index_runs_on_created_at"
     t.index ["project_id", "branch", "created_at"], name: "index_runs_on_project_id_and_branch_and_created_at"
@@ -354,6 +361,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_070000) do
     t.string "app_frame", limit: 500
     t.json "dropped_attachments", default: [], null: false
     t.json "steps"
+    t.boolean "superseded", default: false, null: false
     t.index ["error_group_id", "created_at"], name: "index_test_results_on_error_group_id_and_created_at"
     t.index ["run_id", "status"], name: "index_test_results_on_run_id_and_status"
     t.index ["run_id"], name: "index_test_results_on_run_id"

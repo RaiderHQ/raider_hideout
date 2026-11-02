@@ -357,13 +357,6 @@ RSpec.describe Ingest do
         .to eq("failed")
     end
 
-    it "keeps a re-run attempt in a separate build" do
-      first = ingest(shard_payload(1, total: 1)).run
-      second = ingest(shard_payload(1, total: 1, key: "github_actions:acme/app:123:2", attempt: "2")).run
-      expect(second.build).not_to eq(first.build)
-      expect(second.build).to have_attributes(attempt: "2", status: "passed")
-    end
-
     it "gives a payload without build_key or shard its own build" do
       data = build_payload
       run = ingest(data).run
@@ -488,6 +481,79 @@ RSpec.describe Ingest do
         expect(project.builds.sole).to have_attributes(repository: nil, default_branch: nil, pr_number: nil,
                                                        pr_base_branch: nil, pr_head_branch: nil)
       end
+    end
+  end
+
+  describe "re-run attempts" do
+    def github_ci(attempt:, run_id: "42", repo: "acme/shop")
+      { "provider" => "github_actions", "build_url" => "https://ci/#{run_id}", "build_id" => run_id, "repository" => repo,
+        "attempt" => attempt.to_s, "build_key" => "github_actions:#{repo}:#{run_id}:#{attempt}" }
+    end
+
+    def attempt_payload(attempt, **ci_options)
+      build_payload.tap { |d| d["run"]["ci"] = github_ci(attempt: attempt, **ci_options) }
+    end
+
+    it "puts attempt 2 into the attempt 1 build" do
+      ingest(attempt_payload(1))
+      ingest(attempt_payload(2))
+
+      expect(project.builds.count).to eq(1)
+      build = project.builds.sole
+      expect(build.build_key).to eq("github_actions:acme/shop:42:1")
+      expect(build.ci_run_key).to eq("github_actions:acme/shop:42")
+      expect(build.latest_attempt).to eq(2)
+      expect(build.runs.pluck(:attempt).sort).to eq([ 1, 2 ])
+    end
+
+    it "keeps the first seen build_key when attempt 2 arrives first" do
+      ingest(attempt_payload(2))
+      ingest(attempt_payload(1))
+
+      expect(project.builds.count).to eq(1)
+      build = project.builds.sole
+      expect(build.build_key).to end_with(":2")
+      expect(build.latest_attempt).to eq(2)
+      expect(build.runs.pluck(:attempt).sort).to eq([ 1, 2 ])
+    end
+
+    it "keeps separate builds for different run ids" do
+      ingest(attempt_payload(1, run_id: "42"))
+      ingest(attempt_payload(1, run_id: "43"))
+      expect(project.builds.count).to eq(2)
+    end
+
+    it "keeps Azure attempts apart" do
+      2.times do |i|
+        data = build_payload
+        data["run"]["ci"] = { "provider" => "azure_pipelines", "build_id" => "7", "attempt" => (i + 1).to_s,
+                              "repository" => "acme/shop", "build_key" => "azure_pipelines:acme/shop:7:#{i + 1}" }
+        ingest(data)
+      end
+      expect(project.builds.count).to eq(2)
+      expect(project.builds.pluck(:ci_run_key)).to eq([ nil, nil ])
+    end
+
+    it "keeps a GitHub payload without repository or build_key on its own build" do
+      2.times do
+        data = build_payload
+        data["run"]["ci"] = { "provider" => "github_actions", "build_id" => "42", "attempt" => "2" }
+        ingest(data)
+      end
+      expect(project.builds.count).to eq(2)
+      expect(project.builds.pluck(:ci_run_key)).to eq([ nil, nil ])
+    end
+
+    it "stores attempt 1 for a non-numeric attempt" do
+      data = attempt_payload(1)
+      data["run"]["ci"]["attempt"] = "abc"
+      expect(ingest(data).run.attempt).to eq(1)
+    end
+
+    it "does not lower latest_attempt when an older attempt arrives later" do
+      ingest(attempt_payload(3))
+      ingest(attempt_payload(2))
+      expect(project.builds.sole.latest_attempt).to eq(3)
     end
   end
 
