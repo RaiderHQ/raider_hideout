@@ -13,6 +13,9 @@
     <%= link_to "Errors", project_errors_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
     <%= link_to "Notifications", project_notification_channels_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
     <%= link_to "Gate", project_gate_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <% if role_at_least?(:admin) %>
+      <%= link_to "CI access", project_ci_access_path(@project), class: button_classes(:secondary, extra: "min-w-0") %>
+    <% end %>
     <%= link_to "API tokens", project_api_tokens_path(@project), class: button_classes(:outline, extra: "min-w-0") %>
     <% if role_at_least?(:admin) %>
       <%= button_to "Delete project", project_path(@project), method: :delete, class: button_classes(:danger, extra: "min-w-0"),

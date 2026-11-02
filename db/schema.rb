@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_180000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_190000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -94,6 +94,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_180000) do
     t.index ["project_id", "ci_run_key"], name: "index_builds_on_project_id_and_ci_run_key", unique: true, where: "ci_run_key IS NOT NULL"
     t.index ["project_id", "pr_number"], name: "index_builds_on_project_id_and_pr_number"
     t.index ["project_id"], name: "index_builds_on_project_id"
+  end
+
+  create_table "ci_accesses", force: :cascade do |t|
+    t.integer "project_id", null: false
+    t.string "provider", default: "github", null: false
+    t.text "token", null: false
+    t.datetime "token_saved_at", null: false
+    t.datetime "checked_at"
+    t.boolean "check_ok"
+    t.string "check_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id"], name: "index_ci_accesses_on_project_id", unique: true
   end
 
   create_table "error_groups", force: :cascade do |t|
@@ -437,6 +450,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_180000) do
   add_foreign_key "api_tokens", "projects"
   add_foreign_key "builds", "builds", column: "baseline_build_id", on_delete: :nullify
   add_foreign_key "builds", "projects"
+  add_foreign_key "ci_accesses", "projects", on_delete: :cascade
   add_foreign_key "error_groups", "projects"
   add_foreign_key "gate_rules", "projects", on_delete: :cascade
   add_foreign_key "gate_rules", "users", column: "updated_by_id", on_delete: :nullify
