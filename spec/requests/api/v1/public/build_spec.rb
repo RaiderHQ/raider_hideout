@@ -68,6 +68,19 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds/:id", type: :request d
     expect(body.except("gate", "comparison", "failures", "shards", "results_purged")).to eq(list_entry)
   end
 
+  it "includes recorded steps on a failure that has them" do
+    build = create(:build, project: project, status: "failed")
+    run = create(:run, project: project, build: build)
+    steps = { "items" => [ { "id" => "s1", "title" => "Open" }, { "id" => "s2", "title" => "Click \"Save\"" } ], "failed" => 1 }
+    create(:test_result, run: run, test_case: login, status: "failed", failure_message: "boom", steps: steps)
+    create(:test_result, run: run, test_case: checkout, status: "failed", failure_message: "bang")
+
+    failures = fetch(build.id)["failures"].index_by { |failure| failure["full_name"] }
+
+    expect(failures["Login works"]["steps"]).to eq(steps)
+    expect(failures["Checkout pays"]).not_to have_key("steps")
+  end
+
   it "prefers the stored app_frame over the backtrace fallback" do
     build = create(:build, project: project)
     run = create(:run, project: project, build: build)

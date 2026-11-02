@@ -89,6 +89,16 @@ RSpec.describe "MCP tools", type: :request do
                           "1 new failure vs main: Login works")
   end
 
+  it "returns recorded steps from get_build" do
+    build = seed[:build]
+    steps = { "items" => [ { "id" => "s1", "title" => "Open" }, { "id" => "s2", "title" => "Click \"Save\"" } ], "failed" => 1 }
+    TestResult.where(run: build.runs, status: "failed").update_all(steps: steps)
+
+    result, = call_tool("get_build", project: slug, build_id: build.id)
+
+    expect(result["structuredContent"]["failures"].first["steps"]).to eq(steps)
+  end
+
   it "passes Explore notices through search_tests as data, not as an error (Review Focus 4)" do
     seed
     result, (summary, json) = call_tool("search_tests", project: slug, query: "status:failed foo:bar")
