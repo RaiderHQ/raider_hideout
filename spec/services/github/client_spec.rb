@@ -65,6 +65,20 @@ RSpec.describe Github::Client do
     end
   end
 
+  it "refuses a malformed token before any request" do
+    stub = stub_request(:any, /api\.github\.com/)
+    [ "ghp_short", "", nil, "ghp_#{'a' * 36}\n", "x y" ].each do |bad|
+      expect { described_class.new(bad).repository("octo", "hello") }
+        .to raise_error(Github::Client::Error, "invalid token")
+    end
+    expect(stub).not_to have_been_requested
+  end
+
+  it "masks token-shaped strings in the message" do
+    stub_request(:get, url).to_return(status: 401, body: { message: "bad ghp_abcdefgh12" }.to_json)
+    expect(client.repository("octo", "hello").message).to eq("bad [token]")
+  end
+
   it "does not expose the token through inspect" do
     expect(client.inspect).not_to include(token)
   end

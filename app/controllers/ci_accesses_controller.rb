@@ -14,7 +14,7 @@ class CiAccessesController < ApplicationController
       if @ci_access.save
         redirect_to project_ci_access_path(current_project), notice: "Token saved."
       else
-        @ci_access = current_project.ci_access || current_project.build_ci_access
+        @ci_access.restore_attributes
         @invalid = true
         render :show, status: :unprocessable_content
       end

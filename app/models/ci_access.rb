@@ -5,12 +5,6 @@ class CiAccess < ApplicationRecord
   TOKEN_FORMAT = /\A(github_pat_[A-Za-z0-9_]{20,255}|ghp_[A-Za-z0-9]{36})\z/
   INVALID_TOKEN = "That doesn't look like a GitHub token.".freeze
 
-  # Hash whose string forms hide the token.
-  class RedactedAttributes < Hash
-    def inspect = to_h.merge("token" => "[REDACTED]").inspect
-    alias_method :to_s, :inspect
-  end
-
   belongs_to :project
 
   encrypts :token
@@ -18,17 +12,21 @@ class CiAccess < ApplicationRecord
   validates :project_id, uniqueness: true
   validate :token_has_valid_format
 
-  def attributes = RedactedAttributes[super]
-
-  def inspect
-    "#<CiAccess id=#{id.inspect} project_id=#{project_id.inspect} provider=#{provider.inspect} token=[REDACTED]>"
+  # Never carries the token into as_json / to_json.
+  def serializable_hash(options = nil)
+    super.except("token")
   end
 
-  def redact(text)
-    return text.to_s if token.blank?
+  TOKEN_SHAPE = /github_pat_[A-Za-z0-9_]{8,}|gh[pousr]_[A-Za-z0-9]{8,}/
 
-    text.to_s.gsub(token) { "[token]" }
+  # Masks the exact token, then anything token-shaped (GitHub may echo a prefix).
+  def self.mask(text, token = nil)
+    out = text.to_s
+    out = out.gsub(token) { "[token]" } if token.present?
+    out.gsub(TOKEN_SHAPE) { "[token]" }
   end
+
+  def redact(text) = self.class.mask(text, token)
 
   private
 

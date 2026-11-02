@@ -27,19 +27,29 @@ RSpec.describe CiAccess do
     expect(described_class.last.token).to eq(token)
   end
 
-  it "keeps the token out of inspect and attributes" do
+  it "keeps the token out of inspect and serialization" do
     access = build_access(token)
     access.save!
-    expect(access.inspect).not_to include(token)
-    expect(access.attributes.to_s).not_to include(token)
-    expect(access.attributes.inspect).not_to include(token)
-    expect(described_class.find(access.id).inspect).not_to include(token)
+    [ access, described_class.find(access.id) ].each do |record|
+      expect(record.inspect).not_to include(token)
+      expect(record.inspect).to include("[FILTERED]")
+      expect(record.as_json.to_s).not_to include(token)
+      expect(record.to_json).not_to include(token)
+      expect(record.as_json).not_to have_key("token")
+      expect(record.as_json(only: %i[token provider])).not_to have_key("token")
+    end
   end
 
   it "redacts the token from text" do
     access = build_access(token)
     expect(access.redact("bad credentials #{token} and #{token}")).to eq("bad credentials [token] and [token]")
     expect(access.redact(nil)).to eq("")
+  end
+
+  it "masks token-shaped strings such as an echoed prefix" do
+    access = build_access(token)
+    expect(access.redact("got ghp_abcdefgh12 and github_pat_11ABCDEFG_x here")).to eq("got [token] and [token] here")
+    expect(access.redact("short ghp_abc")).to eq("short ghp_abc")
   end
 
   it "is unique per project" do

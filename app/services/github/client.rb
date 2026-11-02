@@ -1,8 +1,6 @@
 require "net/http"
 
 module Github
-  Response = Data.define(:status, :message)
-
   # Minimal GitHub REST client. Fixed host, no redirects, 10 s timeouts. The token is only
   # ever in the Authorization header; messages from GitHub are redacted, then truncated.
   class Client
@@ -23,6 +21,7 @@ module Github
 
     # GET /repos/{owner}/{repo}: needs only Metadata: read.
     def repository(owner, repo)
+      raise Error, "invalid token" unless CiAccess::TOKEN_FORMAT.match?(@token.to_s)
       raise Error, "invalid repository" unless Repository.valid_part?(owner) && Repository.valid_part?(repo)
 
       request(Net::HTTP::Get, "/repos/#{owner}/#{repo}")
@@ -52,7 +51,7 @@ module Github
       message = JSON.parse(body.to_s)["message"]
       return nil unless message.is_a?(String)
 
-      message.gsub(@token) { "[token]" }[0, MAX_MESSAGE]
+      CiAccess.mask(message, @token)[0, MAX_MESSAGE]
     rescue JSON::ParserError, TypeError, NoMethodError
       nil
     end

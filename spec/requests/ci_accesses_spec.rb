@@ -86,14 +86,30 @@ RSpec.describe "CI access", type: :request do
   it "does not log the token" do
     act_as("admin")
     io = StringIO.new
-    old = Rails.logger
-    Rails.logger = ActiveSupport::Logger.new(io)
+    loggers = [ Rails, ActionController::Base, ActiveRecord::Base ].to_h { |k| [ k, k.logger ] }
+    logger = ActiveSupport::Logger.new(io)
+    Rails.logger = logger
+    ActionController::Base.logger = logger
+    ActiveRecord::Base.logger = logger
     begin
       save_token
     ensure
-      Rails.logger = old
+      Rails.logger = loggers[Rails]
+      ActionController::Base.logger = loggers[ActionController::Base]
+      ActiveRecord::Base.logger = loggers[ActiveRecord::Base]
     end
+    expect(io.string).to include("Parameters", "[FILTERED]")
     expect(io.string).not_to include(token)
+  end
+
+  it "keeps the old saved date and check when a replacement is rejected" do
+    act_as("admin")
+    travel_to(Time.zone.parse("2026-11-02 12:00:00")) { save_token }
+    project.ci_access.update!(checked_at: Time.current, check_ok: true, check_message: "Earlier check passed.")
+    travel_to(Time.zone.parse("2026-11-09 12:00:00")) { save_token("nope") }
+    expect(response).to have_http_status(:unprocessable_content)
+    expect(response.body).to include("Token saved on November 2, 2026.", "Earlier check passed.")
+    expect(project.ci_access.reload.token).to eq(token)
   end
 
   it "does not touch another project's token" do
