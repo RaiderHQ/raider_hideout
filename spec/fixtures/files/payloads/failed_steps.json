@@ -1,0 +1,53 @@
+{
+  "schema_version": 2,
+  "client_run_id": "6f1c2a7e-0d4b-4f3e-9a51-failedsteps01",
+  "run": {
+    "started_at": "2026-11-02T07:00:00Z",
+    "finished_at": "2026-11-02T07:00:09Z",
+    "ci": { "provider": "github_actions", "build_url": "https://ci.example/runs/1", "build_id": "1" },
+    "git": { "branch": "main", "commit_sha": "abc123", "commit_message": "Record login test" },
+    "environment": { "ruby": "4.0.5", "browser": "chrome" }
+  },
+  "results": [
+    {
+      "identifier": "./spec/login_spec.rb[1:1]",
+      "full_name": "Login saves the profile",
+      "file_path": "spec/login_spec.rb",
+      "line_number": 4,
+      "status": "failed",
+      "duration_ms": 3120,
+      "attempts": 1,
+      "tags": [],
+      "attachments": [],
+      "failure": {
+        "message": "Unable to find button \"Save\"",
+        "exception_class": "Capybara::ElementNotFound",
+        "backtrace": ["spec/login_spec.rb:9:in 'block (2 levels) in <top (required)>'"],
+        "app_frame": "spec/login_spec.rb:9:in 'block (2 levels) in <top (required)>'"
+      },
+      "steps": {
+        "items": [
+          { "id": "s1", "title": "Open https://shop.test/login" },
+          { "id": "s2", "title": "Type \"ana@shop.test\" into Email" },
+          { "id": "s3", "title": "Click \"Save\"" }
+        ],
+        "failed": 2
+      }
+    },
+    {
+      "identifier": "./spec/home_spec.rb[1:1]",
+      "full_name": "Home shows the welcome",
+      "file_path": "spec/home_spec.rb",
+      "line_number": 3,
+      "status": "passed",
+      "duration_ms": 900,
+      "attempts": 1,
+      "tags": [],
+      "attachments": [],
+      "steps": {
+        "items": [ { "id": "s1", "title": "Open https://shop.test" } ],
+        "failed": null
+      }
+    }
+  ]
+}

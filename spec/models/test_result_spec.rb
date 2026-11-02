@@ -16,4 +16,48 @@ RSpec.describe TestResult do
     expect(grouped.map(&:first)).to eq(%w[spec/c_spec.rb spec/b_spec.rb spec/a_spec.rb])
     expect(grouped.first.last.map { _1.test_case.full_name }).to eq([ "z broke", "c held", "a fine" ])
   end
+
+  describe ".normalized_steps" do
+    let(:items) { [ { "id" => "s1", "title" => "Open" }, { "id" => "s2", "title" => "Click \"Save\"" } ] }
+
+    it "keeps a valid list and strips unknown keys" do
+      value = { "items" => [ { "id" => "s1", "title" => "Open", "x" => 1 } ], "failed" => 0, "y" => 2 }
+      expect(described_class.normalized_steps(value)).to eq("items" => [ { "id" => "s1", "title" => "Open" } ], "failed" => 0)
+    end
+
+    it "allows failed: null" do
+      expect(described_class.normalized_steps("items" => items, "failed" => nil)).to eq("items" => items, "failed" => nil)
+    end
+
+    it "clips titles to 500 characters" do
+      steps = described_class.normalized_steps("items" => [ { "id" => "s1", "title" => "x" * 501 } ], "failed" => 0)
+      expect(steps["items"].first["title"].length).to eq(500)
+    end
+
+    it "accepts 200 items" do
+      many = Array.new(200) { |i| { "id" => "s#{i}", "title" => "Step #{i}" } }
+      expect(described_class.normalized_steps("items" => many, "failed" => 199)["items"].size).to eq(200)
+    end
+
+    it "returns nil for invalid input" do
+      invalid = [
+        nil, "x", [],
+        { "items" => [], "failed" => nil },
+        { "items" => "nope", "failed" => nil },
+        { "items" => Array.new(201) { |i| { "id" => "s#{i}", "title" => "t" } }, "failed" => nil },
+        { "items" => [ { "title" => "t" } ], "failed" => nil },
+        { "items" => [ { "id" => "", "title" => "t" } ], "failed" => nil },
+        { "items" => [ { "id" => 1, "title" => "t" } ], "failed" => nil },
+        { "items" => [ { "id" => "s1", "title" => 5 } ], "failed" => nil },
+        { "items" => [ "s1" ], "failed" => nil },
+        { "items" => items, "failed" => true },
+        { "items" => items, "failed" => 1.0 },
+        { "items" => items, "failed" => -1 },
+        { "items" => items, "failed" => 2 },
+        { "items" => items, "failed" => "0" },
+        { "items" => items }
+      ]
+      invalid.each { |value| expect(described_class.normalized_steps(value)).to be_nil, "expected nil for #{value.inspect}" }
+    end
+  end
 end
