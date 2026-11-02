@@ -29,6 +29,18 @@ Generated on first boot into `HIDEOUT_SECRETS_FILE` unless set. Setting them as 
 | `SECRET_KEY_BASE` | Sessions and signed links. |
 | `ACTIVE_RECORD_ENCRYPTION_PRIMARY_KEY`, `ACTIVE_RECORD_ENCRYPTION_DETERMINISTIC_KEY`, `ACTIVE_RECORD_ENCRYPTION_KEY_DERIVATION_SALT` | Encrypted columns (webhook URLs, invitation tokens). A restore needs the same values. |
 
+## CI access
+
+Re-running failed builds from Hideout needs a GitHub token per project. GitHub Actions only: no Azure, no GitHub Enterprise. The server must be able to reach `https://api.github.com`.
+
+1. In GitHub, create a fine-grained personal access token for the repository with **Actions: Read and write** and **Metadata: Read**. A classic `ghp_` token also works, but it is broader than needed.
+2. In Hideout, open the project, then CI access (admins and owners only), paste the token and save.
+3. Press Test connection. It checks that GitHub accepts the token and can see the repository, using the project's latest GitHub Actions build. It cannot prove Actions: Read and write, so a first re-run may still be refused with a 403.
+
+The token is stored encrypted (Active Record encryption, see Secrets above) and is never shown again. Replace it or remove it on the same page. Back it up with the database and `storage/hideout-secrets.yml`.
+
+Members and above then see Re-run failed on failed GitHub Actions builds. It calls GitHub's re-run failed jobs endpoint, so only the failed jobs run again, never the whole workflow. Each attempt can be re-run once in 10 minutes. The build page lists who asked, when, and what GitHub answered. The result arrives as the next attempt on the same build.
+
 ## Email (optional)
 
 Without `SMTP_ADDRESS`, invitations show a link to copy, the forgot-password link is hidden (use `bin/rails hideout:password_link EMAIL=…`), and email notification channels are unavailable.
