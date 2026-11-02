@@ -47,6 +47,25 @@ RSpec.describe VapidKey do
     expect(pair.private_key).to eq("winner-priv")
   end
 
+  it "redacts the private key in inspect" do
+    pair = described_class.current
+    expect(pair.inspect).not_to include(pair.private_key)
+    expect(pair.inspect).to include("[REDACTED]", pair.public_key)
+  end
+
+  it "raises on a tampered ciphertext without regenerating" do
+    described_class.current
+    raw = JSON.parse(described_class.connection.select_value("SELECT private_key FROM vapid_keys"))
+    raw["p"] = Base64.strict_encode64("tampered-payload")
+    # Raw SQL: update_column would encrypt the tampered string again.
+    described_class.connection.execute(
+      described_class.sanitize_sql([ "UPDATE vapid_keys SET private_key = ?", raw.to_json ])
+    )
+    expect(WebPush).not_to receive(:generate_key)
+    expect { described_class.current }.to raise_error(ActiveRecord::Encryption::Errors::Decryption)
+    expect(described_class.count).to eq(1)
+  end
+
   describe "env override" do
     before do
       ENV["HIDEOUT_VAPID_PUBLIC_KEY"] = "env-pub"
@@ -100,6 +119,16 @@ RSpec.describe VapidKey do
       fresh = described_class.current
       expect(fresh.public_key).not_to eq(old.public_key)
       expect(described_class.count).to eq(1)
+    end
+
+    it "survives losing the race to a concurrent first use" do
+      allow(WebPush).to receive(:generate_key).and_wrap_original do |original|
+        described_class.create!(name: "default", public_key: "winner-pub", private_key: "winner-priv")
+        original.call
+      end
+      expect(described_class.rotate!).to eq(0)
+      expect(described_class.count).to eq(1)
+      expect(described_class.first.public_key).not_to eq("winner-pub")
     end
 
     it "generates a pair when none exists yet" do

@@ -20,4 +20,14 @@ RSpec.describe "hideout:vapid:rotate" do
     expect { task.invoke }.to output("Rotated the VAPID keys. 3 devices must turn on phone notifications again.\n").to_stdout
     expect(VapidKey.current.public_key).not_to eq(old.public_key)
   end
+
+  it "refuses to rotate when the pair comes from the environment" do
+    ENV["HIDEOUT_VAPID_PUBLIC_KEY"] = "env-pub"
+    ENV["HIDEOUT_VAPID_PRIVATE_KEY"] = "env-priv"
+    expect(VapidKey).not_to receive(:rotate!)
+    task = Rake::Task["hideout:vapid:rotate"]
+    task.reenable
+    expect { task.invoke }.to raise_error(SystemExit) { |e| expect(e.status).not_to eq(0) }
+      .and output("The VAPID keys come from HIDEOUT_VAPID_PUBLIC_KEY and HIDEOUT_VAPID_PRIVATE_KEY. Change them there; nothing was rotated or deleted.\n").to_stderr
+  end
 end

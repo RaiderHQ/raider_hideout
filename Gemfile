@@ -18,6 +18,10 @@ gem "importmap-rails"
 gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
+# Web Push for phone notifications. openssl is pinned to the Ruby-bundled default gem so the Docker build needs no libssl-dev.
+gem "web-push", "~> 3.1"
+gem "openssl", "4.0.0"
+
 # Use Tailwind CSS [https://github.com/rails/tailwindcss-rails]
 gem "tailwindcss-rails"
 
@@ -91,5 +95,3 @@ group :test do
   gem "raider_reporter", "~> 0.7"
   gem "json_schemer", "~> 2.5"
 end
-
-gem "web-push", "~> 3.1"

@@ -4,7 +4,9 @@
 class VapidKey < ApplicationRecord
   class Misconfigured < StandardError; end
 
-  Pair = Data.define(:public_key, :private_key, :subject)
+  Pair = Data.define(:public_key, :private_key, :subject) do
+    def inspect = "#<VapidKey::Pair public_key=#{public_key.inspect} private_key=[REDACTED] subject=#{subject.inspect}>"
+  end
 
   NAME = "default".freeze
   PUBLIC_ENV = "HIDEOUT_VAPID_PUBLIC_KEY".freeze
@@ -19,13 +21,19 @@ class VapidKey < ApplicationRecord
       env_pair || stored_pair
     end
 
+    def env_pair?
+      ENV[PUBLIC_ENV].present? || ENV[PRIVATE_ENV].present?
+    end
+
     # Replaces the stored pair. Returns the number of subscriptions deleted.
     def rotate!
+      fresh = WebPush.generate_key
       transaction do
-        fresh = WebPush.generate_key
-        record = find_by(name: NAME)
-        attrs = { public_key: fresh.public_key, private_key: fresh.private_key }
-        record ? record.update!(attrs) : create!(attrs.merge(name: NAME))
+        record = create_or_find_by!(name: NAME) do |new_record|
+          new_record.public_key = fresh.public_key
+          new_record.private_key = fresh.private_key
+        end
+        record.update!(public_key: fresh.public_key, private_key: fresh.private_key)
         0
       end
     end
