@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_120000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_140000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -364,7 +364,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_120000) do
     t.boolean "superseded", default: false, null: false
     t.index ["error_group_id", "created_at"], name: "index_test_results_on_error_group_id_and_created_at"
     t.index ["run_id", "status"], name: "index_test_results_on_run_id_and_status"
-    t.index ["run_id"], name: "index_test_results_on_run_id"
+    t.index ["run_id", "test_case_id"], name: "index_test_results_on_run_id_and_test_case_id"
     t.index ["test_case_id", "created_at"], name: "index_test_results_on_test_case_id_and_created_at"
     t.index ["test_case_id"], name: "index_test_results_on_test_case_id"
   end
