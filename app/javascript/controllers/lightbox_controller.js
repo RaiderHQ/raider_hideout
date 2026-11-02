@@ -4,8 +4,10 @@ export default class extends Controller {
   static targets = ["dialog", "image"]
 
   open(event) {
-    this.imageTarget.src = event.currentTarget.src
-    this.imageTarget.alt = event.currentTarget.alt
+    const el = event.currentTarget
+    if (el.href && !el.src) event.preventDefault()
+    this.imageTarget.src = el.src || el.href
+    this.imageTarget.alt = el.alt || el.textContent.trim()
     this.dialogTarget.showModal()
   }
 
