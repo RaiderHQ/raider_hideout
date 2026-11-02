@@ -34,6 +34,14 @@ function stepLabel(step) {
   return step.element?.label || step.locator?.label || step.locator?.selector || ""
 }
 
+export function stepText(step) {
+  if (step.action === "match_screenshot") {
+    const name = str(step.name)
+    return step.status === "failed" ? `Screenshot "${name}" did not match` : `Compared screenshot "${name}"`
+  }
+  return [str(step.action || step.kind), step.name, stepLabel(step)].filter(Boolean).join(" ")
+}
+
 export function renderTimeline(container, steps, selectedIndex, onSelect) {
   const byParent = new Map()
   const known = new Set(steps.map((step) => step.index))
@@ -47,10 +55,9 @@ export function renderTimeline(container, steps, selectedIndex, onSelect) {
     const failed = step.status === "failed"
     const button = el("button", { testid: "trace-step", className: `text-left w-full px-2 py-1 rounded text-sm hover:bg-neutral-lt ${failed ? "text-status-err" : ""} ${step.index === selectedIndex ? "font-semibold bg-neutral-lt" : ""}`, attrs: { type: "button" } })
     if (step.index === selectedIndex) button.setAttribute("aria-current", "true")
-    const parts = [str(step.action || step.kind), step.name, stepLabel(step)].filter(Boolean)
-    button.append(el("span", { text: parts.join(" ") }))
+    button.append(el("span", { text: stepText(step) }))
     if (step.waited_ms > 0) button.append(el("span", { text: ` waited ${step.waited_ms} ms`, className: "text-neutral-mid" }))
-    if (failed) button.append(el("span", { text: " failed", testid: "trace-step-failed", className: "text-status-err" }))
+    if (failed && step.action !== "match_screenshot") button.append(el("span", { text: " failed", testid: "trace-step-failed", className: "text-status-err" }))
     button.addEventListener("click", () => onSelect(step.index))
     return button
   }
@@ -85,7 +92,7 @@ export function renderDetail(container, step) {
   const value = step.secret ? "Hidden (password field)" : str(step.value)
   const error = step.error ? `${str(step.error.class)}: ${str(step.error.message)}` : ""
   const facts = el("dl", { className: "grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm" },
-    ...fact("Action", str(step.action || step.kind)), ...fact("Locator", locatorText), ...fact("Value", value),
+    ...fact("Action", step.action === "match_screenshot" ? stepText(step) : str(step.action || step.kind)), ...fact("Locator", locatorText), ...fact("Value", value),
     ...fact("Source", step.source ? `${str(step.source.file)}:${str(step.source.line)}` : ""),
     ...fact("Error", error), ...fact("Waited", step.waited_ms > 0 ? `${step.waited_ms} ms` : ""),
     ...fact("Retries", step.retries > 0 ? str(step.retries) : ""))

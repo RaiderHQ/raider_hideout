@@ -25,6 +25,31 @@ RSpec.describe "Trace viewer panels", type: :system do
     find("#trace-timeline [data-testid=trace-step]", text: text, match: :first).click
   end
 
+  describe "match_screenshot steps" do
+    let(:step) { { "index" => 1, "kind" => "action", "action" => "match_screenshot", "name" => "cart", "status" => "passed" } }
+
+    it "names a failed comparison without the failed suffix" do
+      open_trace(file_fixture("trace-v1-screenshot.zip").binread)
+      row = find("#trace-timeline [data-testid=trace-step]", text: 'Screenshot "home" did not match')
+      expect(row[:class]).to include("text-status-err")
+      expect(row).to have_no_css("[data-testid=trace-step-failed]")
+      row.click
+      expect(page).to have_css("#trace-detail", text: /Action\s+Screenshot "home" did not match/)
+      expect(page).to have_css("[data-testid=trace-screenshot]")
+    end
+
+    it "names a passed comparison" do
+      open_json("format" => "raider-trace", "version" => 1, "steps" => [ step ])
+      expect(page).to have_css("#trace-timeline [data-testid=trace-step]", text: 'Compared screenshot "cart"')
+    end
+
+    it "renders a hostile name as text" do
+      open_json("format" => "raider-trace", "version" => 1, "steps" => [ step.merge("name" => "<img src=x onerror=alert(1)>") ])
+      expect(page).to have_css("#trace-timeline [data-testid=trace-step]", text: "<img src=x onerror=alert(1)>")
+      expect(page).to have_no_css("#trace-timeline img")
+    end
+  end
+
   it "marks the failed group and selects it by default" do
     failed = data["steps"].count { |s| s["status"] == "failed" }
     open_trace(file_fixture("trace-v1.zip").binread)
