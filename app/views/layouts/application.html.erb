@@ -9,7 +9,7 @@
     <%= javascript_importmap_tags %>
     <%= yield :head %>
   </head>
-  <body>
+  <body <%= tag.attributes(data: { turbo: false }) if content_for?(:no_turbo) %>>
     <nav class="bg-neutral-wh shadow-nav">
       <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <%= link_to root_path, class: "flex items-center gap-2 font-semibold text-neutral-dark" do %>

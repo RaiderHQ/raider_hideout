@@ -1,0 +1,13 @@
+<% content_for :title, "Trace · #{@result.test_case.full_name}" %>
+<% content_for :no_turbo, "1" %>
+<p class="text-sm text-neutral-mid mb-4">
+  <%= link_to "Build ##{@result.run.build.id}", project_build_path(@result.run.project, @result.run.build), class: "hover:text-ruby" %>
+</p>
+<h1 class="text-xl font-semibold mb-4">Trace · <%= @result.test_case.full_name %></h1>
+<div data-controller="trace-viewer" data-trace-viewer-url-value="<%= test_result_trace_zip_path(@result, @trace) %>" class="space-y-4">
+  <div id="trace-notices"></div>
+  <div id="trace-timeline"></div>
+  <div id="trace-detail"></div>
+  <div id="trace-network"></div>
+  <div id="trace-console"></div>
+</div>

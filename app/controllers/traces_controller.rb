@@ -8,7 +8,16 @@ class TracesController < ApplicationController
     policy.default_src :none
     policy.sandbox
   end
-  content_security_policy_report_only false, only: :zip
+  # The viewer renders snapshot CSS from a sandboxed iframe's parent page, so it needs inline styles. The
+  # nonce stays on script-src only: a style nonce would make browsers ignore 'unsafe-inline'.
+  content_security_policy(only: :show) { |policy| policy.style_src :self, :unsafe_inline }
+  content_security_policy_report_only false
+  before_action -> { request.content_security_policy_nonce_directives = %w[script-src] }, only: :show
+
+  def show
+    @trace = find_trace!
+    @result = @trace.record
+  end
 
   # Headers are fixed before the first write: ActionController::Live commits them then.
   def zip
