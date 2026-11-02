@@ -1,5 +1,7 @@
 Rails.application.routes.draw do
   get "attachments/:id", to: "attachments#show", as: :attachment
+  get "test_results/:test_result_id/trace/:id", to: "traces#show", as: :test_result_trace
+  get "test_results/:test_result_id/trace/:id/zip", to: "traces#zip", as: :test_result_trace_zip
   resource :session
   resource :setup, only: %i[show create]
   resources :passwords, only: %i[new create]

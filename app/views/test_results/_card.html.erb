@@ -1,5 +1,7 @@
 <% failed = result.status == "failed" %>
 <% failing = TestResult::FAILING_STATUSES.include?(result.status) %>
+<% traces = result.attachments.select { |a| a.content_type == Ingest::TRACE_CONTENT_TYPE }.sort_by(&:created_at).reverse %>
+<% attachments = result.attachments.to_a - traces %>
 <details class="bg-neutral-wh rounded-md border border-neutral-bdr shadow-card" <%= "open" if failed %>>
   <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer list-none">
     <%= status_dot(result.status) %>
@@ -14,11 +16,14 @@
     <%= link_to "History", project_test_case_path(result.run.project, result.test_case), class: "text-xs text-ruby" %>
   </summary>
   <div class="px-4 pb-4 space-y-3">
+    <% traces.each_with_index do |trace, index| %>
+      <p><%= link_to (traces.size > 1 ? "Open trace (#{index + 1} of #{traces.size})" : "Open trace"), test_result_trace_path(result, trace), data: { turbo: false, turbo_prefetch: false }, class: "text-xs text-ruby" %></p>
+    <% end %>
     <% if failing %>
-      <% images = result.attachments.select { |a| a.content_type.to_s.start_with?("image/") } %>
+      <% images = attachments.select { |a| a.content_type.to_s.start_with?("image/") } %>
       <% shot = images.find { |a| result.attachment_name(a) == "screenshot" } || images.first %>
-      <% videos = result.attachments.select { |a| a.content_type.to_s.start_with?("video/") } %>
-      <% others = result.attachments.to_a - [ shot ] - videos %>
+      <% videos = attachments.select { |a| a.content_type.to_s.start_with?("video/") } %>
+      <% others = attachments - [ shot ] - videos %>
       <% if result.steps.present? %>
         <%= render "test_results/steps", result: result, shot: shot %>
       <% else %>
@@ -44,9 +49,9 @@
           <% end %>
         </div>
       <% end %>
-    <% elsif result.attachments.any? %>
+    <% elsif attachments.any? %>
       <div class="flex flex-wrap gap-3">
-        <% result.attachments.each do |attachment| %>
+        <% attachments.each do |attachment| %>
           <%= render "test_results/attachment", result: result, attachment: attachment %>
         <% end %>
       </div>

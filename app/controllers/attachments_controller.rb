@@ -51,9 +51,7 @@ class AttachmentsController < ApplicationController
 
   def viewable?(attachment)
     attachment.record_type == "TestResult" &&
-      TestResult.joins(:run)
-                .where(id: attachment.record_id, runs: { project_id: Current.user.projects.select(:id) })
-                .exists?
+      TestResult.visible_to(Current.user).where(id: attachment.record_id).exists?
   end
 
   def inline?(blob)

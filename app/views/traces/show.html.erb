@@ -1,0 +1,23 @@
+<% content_for :title, "Trace · #{@result.test_case.full_name}" %>
+<% content_for :no_turbo, "1" %>
+<p class="text-sm text-neutral-mid mb-4">
+  <%= link_to "Build ##{@result.run.build.id}", project_build_path(@result.run.project, @result.run.build), class: "hover:text-ruby" %>
+</p>
+<h1 class="text-xl font-semibold mb-4">Trace · <%= @result.test_case.full_name %></h1>
+<div data-controller="trace-viewer" data-trace-viewer-url-value="<%= test_result_trace_zip_path(@result, @trace) %>" class="space-y-4">
+  <div id="trace-notices" class="space-y-1"></div>
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+    <div id="trace-timeline" class="min-w-0 overflow-x-auto"></div>
+    <div class="min-w-0 space-y-4">
+      <div id="trace-detail" class="space-y-3 min-w-0"></div>
+      <div>
+        <div class="flex gap-2 mb-2" role="group" aria-label="Network and console">
+          <button type="button" data-tab="network" data-action="trace-viewer#tab" class="px-3 py-1 text-sm rounded border border-neutral-bdr aria-selected:bg-neutral-lt">Network</button>
+          <button type="button" data-tab="console" data-action="trace-viewer#tab" class="px-3 py-1 text-sm rounded border border-neutral-bdr aria-selected:bg-neutral-lt">Console</button>
+        </div>
+        <div id="trace-network" class="min-w-0"></div>
+        <div id="trace-console" class="min-w-0" hidden></div>
+      </div>
+    </div>
+  </div>
+</div>
