@@ -16,7 +16,7 @@ RSpec.describe "Traces", type: :request do
       expect(response.headers["Content-Type"]).to eq("application/octet-stream")
       expect(response.headers["Content-Disposition"]).to start_with("attachment")
       expect(response.headers["X-Content-Type-Options"]).to eq("nosniff")
-      expect(response.headers["Cache-Control"]).to include("no-store")
+      expect(response.headers["Cache-Control"]).to eq("private, no-store")
       expect(response.headers["Content-Security-Policy"]).to eq("default-src 'none'; sandbox")
     end
 

@@ -10,12 +10,14 @@ class TracesController < ApplicationController
   end
   content_security_policy_report_only false, only: :zip
 
+  # Headers are fixed before the first write: ActionController::Live commits them then.
   def zip
     blob = find_trace!.blob
-    send_blob_stream(blob, disposition: "attachment")
-    response.headers["Content-Type"] = "application/octet-stream"
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    send_stream(filename: blob.filename.sanitized, disposition: "attachment", type: "application/octet-stream") do |stream|
+      blob.download { |chunk| stream.write chunk }
+    end
   end
 
   private
