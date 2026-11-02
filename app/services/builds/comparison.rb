@@ -62,7 +62,7 @@ module Builds
     end
 
     def statuses(build)
-      TestResult.where(run_id: build.runs.select(:id)).group(:test_case_id).pluck(:test_case_id, Arel.sql(STATUS_SQL)).to_h
+      build.effective_results.group(:test_case_id).pluck(:test_case_id, Arel.sql(STATUS_SQL)).to_h
     end
 
     def buckets

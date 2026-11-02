@@ -1,6 +1,7 @@
 require "rails_helper"
 
 RSpec.describe Build do
+  include ActiveSupport::Testing::TimeHelpers
   let(:project) { create(:project) }
   let(:build_record) { create(:build, project: project) }
 
@@ -84,6 +85,166 @@ RSpec.describe Build do
       expect(build_record.started_at).to eq(Time.utc(2026, 1, 1, 10, 0, 0))
       expect(build_record.finished_at).to eq(Time.utc(2026, 1, 1, 10, 1, 0))
       expect(build_record.duration_ms).to eq(60_000)
+    end
+  end
+
+  describe "re-run attempts" do
+    let(:case_x) { create(:test_case, project: project, full_name: "X") }
+    let(:case_y) { create(:test_case, project: project, full_name: "Y") }
+
+    def attempt_run(attempt, label, results, **attrs)
+      counts = results.values.tally
+      run = add_run({ attempt: attempt, shard_label: label, total_count: results.size,
+                      passed_count: counts.fetch("passed", 0), failed_count: counts.fetch("failed", 0),
+                      status: counts.key?("failed") ? "failed" : "passed" }.merge(attrs))
+      results.each { |test_case, status| create(:test_result, run: run, test_case: test_case, status: status) }
+      run
+    end
+
+    it "supersedes an earlier attempt's result for the same case and slot" do
+      first = attempt_run(1, "test#2", { case_x => "failed" })
+      attempt_run(2, "test#2", { case_x => "passed" })
+      build_record.recompute!
+      expect(first.test_results.first).to be_superseded
+      expect(build_record).to have_attributes(total_count: 1, failed_count: 0, passed_count: 1, status: "passed")
+    end
+
+    it "skips the supersession UPDATE when every run is the same attempt (Azure stage retry)" do
+      attempt_run(2, "test#1", { case_x => "failed" })
+      queries = []
+      sub = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, pl| queries << pl[:sql] }
+      build_record.mark_superseded!
+      ActiveSupport::Notifications.unsubscribe(sub)
+      expect(queries.grep(/EXISTS/)).to be_empty
+    end
+
+    it "lets a re-run fill a shard that never uploaded in attempt 1" do
+      b = create(:build, project: project, ci_run_key: "gh:r:9", expected_shards: 3)
+      [ [ 1, "test#1" ], [ 1, "test#2" ], [ 2, "test#3" ] ].each_with_index do |(attempt, label), i|
+        run = create(:run, project: project, build: b, attempt: attempt, shard_label: label, status: "passed",
+                           total_count: 1, passed_count: 1, flakiness_analyzed_at: Time.current)
+        create(:test_result, run: run, test_case: create(:test_case, project: project, full_name: "T#{i}"), status: "passed")
+        b.reload
+        expect(b).not_to be_complete if i < 2
+      end
+      b.recompute!
+      expect(b).to be_complete
+      expect(b.status).not_to eq("incomplete")
+      expect(b.shard_progress).to eq("3/3")
+      expect(b.attempt_ready?(1)).to be(true)
+    end
+
+    it "does not count unlabeled or already-seen later runs toward completeness" do
+      b = create(:build, project: project, ci_run_key: "gh:r:10", expected_shards: 3)
+      create(:run, project: project, build: b, attempt: 1, shard_label: "test#1")
+      create(:run, project: project, build: b, attempt: 1, shard_label: "test#2")
+      create(:run, project: project, build: b, attempt: 2, shard_label: "test#2")
+      create(:run, project: project, build: b, attempt: 2, shard_label: nil)
+      expect(b.reload.shard_progress).to eq("2/3")
+    end
+
+    it "keeps other matrix legs effective" do
+      attempt_run(1, "test#1", { case_x => "passed" })
+      attempt_run(1, "test#2", { case_x => "failed" })
+      attempt_run(2, "test#2", { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record).to have_attributes(total_count: 2, failed_count: 0, passed_count: 2)
+      expect(TestResult.joins(:run).find_by(runs: { shard_label: "test#1" })).not_to be_superseded
+    end
+
+    it "treats unlabeled runs as one slot" do
+      attempt_run(1, nil, { case_x => "failed" })
+      attempt_run(2, nil, { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record).to have_attributes(total_count: 1, failed_count: 0, status: "passed")
+    end
+
+    it "keeps a case absent from the later attempt" do
+      attempt_run(1, "test#1", { case_x => "failed", case_y => "failed" })
+      attempt_run(2, "test#1", { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record).to have_attributes(total_count: 2, failed_count: 1, passed_count: 1, status: "failed")
+    end
+
+    it "gives the same counts when attempt 2 is ingested first" do
+      payload = lambda do |attempt, status|
+        build_payload(results: [ build_result("status" => status) ]).tap do |d|
+          d["run"]["ci"] = { "provider" => "github_actions", "build_id" => "9", "repository" => "acme/shop",
+                             "attempt" => attempt.to_s, "build_key" => "github_actions:acme/shop:9:#{attempt}" }
+          d["run"]["shard"] = { "index" => 1, "total" => 1, "label" => "test#1" }
+        end
+      end
+      summaries = [ [ [ 1, "failed" ], [ 2, "passed" ] ], [ [ 2, "passed" ], [ 1, "failed" ] ] ].map do |order|
+        owner = create(:project)
+        order.each { |attempt, status| Ingest.call(project: owner, payload: payload.call(attempt, status).to_json, files: {}) }
+        build = owner.builds.sole
+        [ build.total_count, build.passed_count, build.failed_count, build.status ]
+      end
+      expect(summaries.first).to eq([ 1, 1, 0, "passed" ])
+      expect(summaries.last).to eq(summaries.first)
+    end
+
+    it "never lets attempt 2 runs make a complete build incomplete" do
+      2.times { |i| attempt_run(1, "test##{i + 1}", { case_x => "passed" }, shard_index: i + 1, shard_total: 2) }
+      attempt_run(2, "test#2", { case_x => "passed" }, shard_index: 2, shard_total: 2)
+      build_record.recompute!
+      expect(build_record).to be_complete
+      expect(build_record.status).not_to eq("incomplete")
+      expect(build_record).to have_attributes(expected_shards: 2, shard_progress: "2/2")
+    end
+
+    it "falls back to the lowest attempt present when attempt 1 never uploaded" do
+      attempt_run(2, nil, { case_x => "passed" }, shard_index: 1, shard_total: 1)
+      build_record.recompute!
+      expect(build_record.first_attempt_runs.count).to eq(1)
+      expect(build_record).to be_complete
+    end
+
+    it "lists fixed_by_rerun" do
+      attempt_run(1, "test#2", { case_x => "failed", case_y => "passed" })
+      second = attempt_run(2, "test#2", { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record.fixed_by_rerun).to eq([ [ second.test_results.first, 2 ] ])
+    end
+  end
+
+  describe "#fixed_by_rerun query count and #attempt_summaries" do
+    let(:project) { create(:project) }
+    let(:record) { create(:build, project: project, ci_run_key: "github_actions:a/b:1", ci_url: "https://ci.example/run/1") }
+
+    def queries
+      n = 0
+      sub = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, p| n += 1 unless p[:name] == "SCHEMA" }
+      yield
+      n
+    ensure
+      ActiveSupport::Notifications.unsubscribe(sub)
+    end
+
+    it "uses a constant number of queries however many tests were fixed" do
+      first = create(:run, project: project, build: record, attempt: 1, shard_label: "t#1", status: "failed")
+      second = create(:run, project: project, build: record, attempt: 2, shard_label: "t#1")
+      counts = [ 2, 12 ].map do |n|
+        n.times do |i|
+          kase = create(:test_case, project: project, full_name: "Fix #{n}-#{i}", file_path: "f#{n}.rb")
+          create(:test_result, run: first, test_case: kase, status: "failed", superseded: true)
+          create(:test_result, run: second, test_case: kase, status: "passed")
+        end
+        found = nil
+        count = queries { found = record.fixed_by_rerun }
+        expect(found.size).to eq(n == 2 ? 2 : 14)
+        count
+      end
+      expect(counts.last).to eq(counts.first)
+    end
+
+    it "summarises each attempt from the runs" do
+      create(:run, project: project, build: record, attempt: 1, status: "failed", passed_count: 3, failed_count: 1, total_count: 4, flakiness_analyzed_at: 1.hour.ago)
+      create(:run, project: project, build: record, attempt: 2, status: "passed", passed_count: 1, total_count: 1, flakiness_analyzed_at: 1.hour.ago)
+      one, two = record.reload.attempt_summaries
+      expect(one).to have_attributes(attempt: 1, status: "failed", run_count: 1, ci_url: "https://ci.example/run/1/attempts/1")
+      expect(one.counts).to include(passed: 3, failed: 1, total: 4)
+      expect(two).to have_attributes(attempt: 2, status: "passed", ready: true)
     end
   end
 
@@ -176,6 +337,83 @@ RSpec.describe Build do
       lone.comparison_branch
       ActiveSupport::Notifications.unsubscribe(sub)
       expect(count).to eq(0)
+    end
+  end
+
+
+  describe "#attempt_ready?" do
+    let(:b) { create(:build, project: project, ci_run_key: "gh:r:1") }
+
+    def analysed_run(attempt, at: Time.current, status: "failed")
+      create(:run, project: project, build: b, attempt: attempt, status: status, flakiness_analyzed_at: at)
+    end
+
+    it "equals the first-attempt rule for the first attempt" do
+      expect(b.attempt_ready?(1)).to eq(b.ready_to_notify?)
+      analysed_run(1)
+      expect(b.reload.attempt_ready?(1)).to be(true)
+    end
+
+    it "ignores a late attempt-2 run still being analysed when judging attempt 1" do
+      analysed_run(1)
+      create(:run, project: project, build: b, attempt: 2)
+      expect(b.reload).to be_ready_to_notify
+    end
+
+    it "reports the lowest attempt present as first_attempt, 1 when none" do
+      expect(b.first_attempt).to eq(1)
+      analysed_run(2)
+      expect(b.reload.first_attempt).to eq(2)
+      analysed_run(3)
+      expect(b.reload.first_attempt).to eq(2)
+    end
+
+    it "is false below the failed-run floor and true once it is met" do
+      analysed_run(1)
+      analysed_run(1)
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(false)
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(true)
+    end
+
+    it "below the floor is false within the fallback and true after it" do
+      analysed_run(1)
+      analysed_run(1)
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(false)
+      b.runs.where(attempt: 2).update_all(flakiness_analyzed_at: 6.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(true)
+    end
+
+    it "uses one guard: a build whose only attempt is 2 is not a re-run" do
+      analysed_run(2)
+      expect(b.reload.rerun_attempt?(2)).to be(false)
+      expect(b.attempt_ready?(2)).to eq(b.ready_to_notify?)
+    end
+
+    it "is false inside the quiet period and true after it" do
+      analysed_run(1)
+      analysed_run(2, at: Time.current)
+      expect(b.reload.attempt_ready?(2)).to be(false)
+      travel(Build::ATTEMPT_QUIET_PERIOD + 1.second) do
+        expect(b.reload.attempt_ready?(2)).to be(true)
+      end
+    end
+
+    it "is false when an attempt-N run is not analysed or no attempt-N run exists" do
+      analysed_run(1)
+      expect(b.attempt_ready?(2)).to be(false)
+      create(:run, project: project, build: b, attempt: 2)
+      travel(Build::ATTEMPT_QUIET_PERIOD + 1.second) do
+        expect(b.reload.attempt_ready?(2)).to be(false)
+      end
+    end
+
+    it "needs one attempt-N run when the previous attempt had no failed run" do
+      analysed_run(1, status: "passed")
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(true)
     end
   end
 end

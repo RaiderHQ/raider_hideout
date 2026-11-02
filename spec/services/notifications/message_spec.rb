@@ -73,4 +73,26 @@ RSpec.describe Notifications::Message do
     expect(m.failures).to eq([])
     expect(m.build_url).to eq("http://example.com/projects/#{project.to_param}")
   end
+
+
+  describe "re-run attempts" do
+    it "prefixes the headline and summarises fixed vs still failing" do
+      rerun = create(:build, project: project, branch: "main", ci_run_key: "gh:o/r:6", status: "passed")
+      fixed_case = create(:test_case, project: project)
+      run1 = create(:run, project: project, build: rerun, attempt: 1, status: "failed", failed_count: 1, total_count: 1)
+      create(:test_result, run: run1, test_case: fixed_case, status: "failed")
+      run2 = create(:run, project: project, build: rerun, attempt: 2, status: "passed", passed_count: 1, total_count: 1)
+      create(:test_result, run: run2, test_case: fixed_case, status: "passed")
+      rerun.recompute!
+      rerun.update_columns(failed_count: 1)
+      m = described_class.for_build(rerun, %w[recovered], url_options: opts, attempt: 2)
+      expect(m.headline).to eq("Re-run (attempt 2): build recovered")
+      expect(m.title).to eq("Raider: Re-run (attempt 2): build recovered — Shop")
+      expect(m.summary).to include("1 fixed, 1 still failing")
+    end
+
+    it "leaves attempt 1 copy alone" do
+      expect(message(%w[recovered]).headline).to eq("build recovered")
+    end
+  end
 end

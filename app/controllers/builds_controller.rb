@@ -9,10 +9,11 @@ class BuildsController < ApplicationController
   def show
     @build = current_project.builds.find(params[:id])
     @runs = Run.in_shard_order(@build.runs.to_a)
-    results = TestResult.where(run_id: @build.runs.select(:id))
+    @rerun_attempts = @build.rerun_attempt?(@build.latest_attempt)
+    results = @build.effective_results
                         .includes(:test_case, { run: :project }, attachments_attachments: :blob)
     @groups = TestResult.grouped_for_display(results)
-    @verdicts = TestCaseVerdict.for_cases(TestResult.where(run_id: @build.runs.select(:id)).select(:test_case_id),
+    @verdicts = TestCaseVerdict.for_cases(@build.effective_results.select(:test_case_id),
                                           branch: @build.branch, default_branch: @build.comparison_branch)
     load_error_groups
     @comparison = Builds::Comparison.new(@build) if @build.ready_to_notify? && @build.baseline_assigned_at && !@build.results_expired?

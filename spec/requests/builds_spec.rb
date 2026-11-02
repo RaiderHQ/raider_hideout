@@ -33,6 +33,14 @@ RSpec.describe "Builds", type: :request do
     expect(response.body).not_to include("abcdef12")
   end
 
+  it "chips the latest attempt on re-run GitHub builds only" do
+    create(:build, project: project, commit_message: "Rerun", ci_run_key: "github_actions:a/b:1", latest_attempt: 2)
+    create(:build, project: project, commit_message: "Single", ci_run_key: "github_actions:a/b:2", latest_attempt: 1)
+    create(:build, project: project, commit_message: "Azure", ci_run_key: nil, latest_attempt: 3)
+    get project_builds_path(project)
+    expect(response.body.scan(/attempt \d/)).to eq([ "attempt 2" ])
+  end
+
   it "keeps the builds index query count constant (no N+1)" do
     count_queries = lambda do
       n = 0

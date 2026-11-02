@@ -525,7 +525,7 @@ components:
           minimum: 0
     BuildFields:
       type: object
-      required: [id, build_key, branch, commit_sha, commit_message, status, counts, pass_rate, gate_status, duration_ms, pr, ci_url, url, created_at]
+      required: [id, build_key, branch, commit_sha, commit_message, status, attempt, counts, pass_rate, gate_status, duration_ms, pr, ci_url, url, created_at]
       properties:
         id:
           type: integer
@@ -539,6 +539,10 @@ components:
           type: [string, "null"]
         status:
           $ref: "#/components/schemas/BuildStatus"
+        attempt:
+          description: The newest attempt seen for this build; 1 unless GitHub re-ran the workflow.
+          type: integer
+          minimum: 1
         counts:
           $ref: "#/components/schemas/Counts"
         pass_rate:
@@ -629,8 +633,11 @@ components:
     Shard:
       type: object
       additionalProperties: false
-      required: [index, total, label, status, counts]
+      required: [index, total, label, status, attempt, counts]
       properties:
+        attempt:
+          type: integer
+          minimum: 1
         index:
           type: [integer, "null"]
         total:
@@ -641,10 +648,67 @@ components:
           type: string
         counts:
           $ref: "#/components/schemas/Counts"
+    Attempt:
+      description: One CI attempt of the build (GitHub re-runs share a build). Counts cover that attempt's runs only.
+      type: object
+      additionalProperties: false
+      required: [attempt, status, ready, run_count, counts, created_at, ci_url]
+      properties:
+        attempt:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [passed, failed]
+        ready:
+          type: boolean
+        run_count:
+          type: integer
+          minimum: 1
+        counts:
+          $ref: "#/components/schemas/Counts"
+        created_at:
+          $ref: "#/components/schemas/Time"
+        ci_url:
+          type: [string, "null"]
+    FixedByRerun:
+      description: >-
+        A test that failed in an earlier attempt and passed in a later one: the Failure row shape, with the passing
+        status and the attempt that fixed it.
+      type: object
+      additionalProperties: false
+      required: [test_case_id, full_name, file_path, line_number, status, exception_class, message, error_group_id, attempts, app_frame, fixed_in_attempt]
+      properties:
+        test_case_id:
+          type: integer
+        full_name:
+          type: string
+        file_path:
+          type: string
+        line_number:
+          type: [integer, "null"]
+        status:
+          type: string
+        exception_class:
+          type: [string, "null"]
+        message:
+          type: [string, "null"]
+          maxLength: 1000
+        error_group_id:
+          type: [integer, "null"]
+        attempts:
+          type: integer
+        app_frame:
+          type: [string, "null"]
+        steps:
+          $ref: "#/components/schemas/FailureSteps"
+        fixed_in_attempt:
+          type: integer
+          minimum: 2
     BuildDetail:
       allOf:
         - $ref: "#/components/schemas/BuildFields"
-      required: [gate, comparison, failures, shards, results_purged]
+      required: [gate, comparison, failures, shards, results_purged, attempts, fixed_by_rerun]
       properties:
         gate:
           type: object
@@ -717,6 +781,16 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Shard"
+        attempts:
+          description: One entry per attempt that has runs, oldest first; empty for a build with no runs yet.
+          type: array
+          items:
+            $ref: "#/components/schemas/Attempt"
+        fixed_by_rerun:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/FixedByRerun"
         results_purged:
           type: boolean
       unevaluatedProperties: false

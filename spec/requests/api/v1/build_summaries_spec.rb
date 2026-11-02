@@ -59,4 +59,12 @@ RSpec.describe "GET /api/v1/builds/summary", type: :request do
     get "/api/v1/builds/summary", params: { build_key: "gh:1" }, headers: { "Authorization" => "Bearer nope" }
     expect(response).to have_http_status(:unauthorized)
   end
+
+  it "resolves an attempt 2 key to the merged build" do
+    merged = create(:build, project: project, build_key: "github_actions:acme/shop:42:1", ci_run_key: "github_actions:acme/shop:42",
+                            provider: "github_actions", status: "passed")
+    get "/api/v1/builds/summary", params: { build_key: "github_actions:acme/shop:42:2" }, headers: headers
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["url"]).to eq("http://www.example.com/projects/#{project.slug}/builds/#{merged.id}")
+  end
 end

@@ -16,6 +16,19 @@ RSpec.describe Builds::Comparison do
     create(:test_result, run: run, test_case: test_case, status: status)
   end
 
+  it "ignores a superseded failure" do
+    flaky = kase("flaky")
+    old_run = create(:run, project: project, build: build, attempt: 1)
+    new_run = create(:run, project: project, build: build, attempt: 2)
+    create(:test_result, run: old_run, test_case: flaky, status: "failed")
+    create(:test_result, run: new_run, test_case: flaky, status: "passed")
+    result(baseline, flaky, "passed")
+    build.mark_superseded!
+
+    expect(comparison.new_failures).to be_empty
+    expect(comparison.status_for(flaky.id)).to be_nil
+  end
+
   it "sorts each bucket into new failures, still failing, fixed and new tests" do
     broke = kase("broke"); skipped_before = kase("was skipped"); bad = kase("bad"); healed = kase("healed")
     fresh = kase("fresh"); fresh_bad = kase("fresh bad", file: "spec/0_spec.rb"); steady = kase("steady")

@@ -78,6 +78,7 @@ class Ingest
       build = find_or_create_build(data)
       backfill_build(build, data)
       run = @project.runs.create!(run_attributes(data).merge(build: build))
+      raise_latest_attempt(build, run.attempt) if build.ci_run_key
       case_ids = upsert_test_cases(results)
       insert_results(run, results, case_ids)
       group_failures(run, results)
@@ -88,15 +89,56 @@ class Ingest
   end
 
   # Shards of one CI build arrive concurrently: the unique (project_id, build_key)
-  # index decides the winner and the loser reads the winner's row.
+  # index decides the winner and the loser reads the winner's row. A GitHub run's
+  # re-run attempts share one build, found through the unique (project_id, ci_run_key)
+  # index instead; the first attempt seen names the build.
   def find_or_create_build(data)
-    key = data.dig("run", "ci", "build_key").presence || "run:#{data['client_run_id']}"
+    ci = data.dig("run", "ci")
+    run_key = Builds::RunKey.from_ci(ci)
+    key = build_key_for(data, ci, run_key)
+    return find_or_create_by_key(data, key) unless run_key
+
+    @project.builds.find_by(ci_run_key: run_key) || create_keyed_build(data, key, run_key)
+  end
+
+  def build_key_for(data, ci, run_key)
+    explicit = ci.is_a?(Hash) ? ci["build_key"].presence : nil
+    return explicit if explicit
+    return "#{run_key}:#{Builds::RunKey.attempt(ci['attempt'])}" if run_key
+
+    "run:#{data['client_run_id']}"
+  end
+
+  def find_or_create_by_key(data, key)
     @project.builds.find_by(build_key: key) ||
       @project.builds.create_or_find_by!(build_key: key) { |build| build.assign_attributes(build_attributes(data)) }
   rescue ActiveRecord::RecordInvalid => e
     raise unless e.record.errors.of_kind?(:build_key, :taken)
 
     @project.builds.find_by!(build_key: key)
+  end
+
+  def create_keyed_build(data, key, run_key)
+    @project.builds.create_or_find_by!(ci_run_key: run_key) do |build|
+      build.assign_attributes(build_attributes(data).merge(build_key: key))
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    raise unless e.record.errors.of_kind?(:build_key, :taken)
+
+    existing_build(run_key, key)
+  rescue ActiveRecord::RecordNotFound
+    existing_build(run_key, key)
+  end
+
+  # Either unique index can have lost the race: the run key (a sibling attempt) or the build_key.
+  def existing_build(run_key, key)
+    @project.builds.find_by(ci_run_key: run_key) || @project.builds.find_by!(build_key: key)
+  end
+
+  # Atomic and monotonic: concurrent attempts can arrive in any order.
+  def raise_latest_attempt(build, attempt)
+    Build.where(id: build.id).where("latest_attempt < ?", attempt).update_all(latest_attempt: attempt)
+    build.reload
   end
 
   # Later shards may carry fields the first one lacked (e.g. PR details): fill
@@ -142,7 +184,7 @@ class Ingest
       started_at: started, finished_at: finished,
       duration_ms: (started && finished ? ((finished - started) * 1000).round : nil),
       branch: git["branch"].presence, commit_sha: git["commit_sha"].presence, commit_message: git["commit_message"],
-      ci_provider: ci["provider"], build_url: safe_url(ci["build_url"]), ci_build_id: ci["build_id"]&.to_s,
+      attempt: Builds::RunKey.attempt(ci["attempt"]), ci_provider: ci["provider"], build_url: safe_url(ci["build_url"]), ci_build_id: ci["build_id"]&.to_s,
       environment: meta["environment"] || {},
       shard_index: shard["index"], shard_total: shard["total"], shard_label: shard["label"]
     }

@@ -7,15 +7,17 @@ module Api
       api_rate_limit to: 300, only: :show
 
       def show
-        build = @api_token.project.builds.find_by(build_key: params[:build_key].to_s)
+        build, requested_attempt = Builds::RunKey.find_build(@api_token.project, params[:build_key])
         return render json: { error: "build not found" }, status: :not_found unless build
 
         report = build.gate_report
+        # The verdict on file is for an earlier attempt: this attempt is still being evaluated.
+        awaiting_attempt = requested_attempt > 1 && requested_attempt > build.gate_attempt.to_i
         render json: {
-          state: report.state,
+          state: awaiting_attempt ? "pending" : report.state,
           build_state: build.status,
-          shards: { received: build.runs.count, expected: build.expected_shards },
-          rules: report.rules.map { |rule| { rule: rule.rule, outcome: rule.outcome, detail: rule.detail } },
+          shards: { received: build.received_shard_count, expected: build.expected_shards },
+          rules: awaiting_attempt ? [] : report.rules.map { |rule| { rule: rule.rule, outcome: rule.outcome, detail: rule.detail } },
           url: project_build_url(build.project, build)
         }
       end

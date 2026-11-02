@@ -151,6 +151,54 @@ RSpec.describe "Build detail", type: :request do
     expect(count).to be <= 14
   end
 
+  describe "re-run attempts" do
+    def rerun_build(attempts: 2)
+      build = create(:build, project: project, ci_run_key: "github_actions:acme/shop:#{SecureRandom.hex(3)}", latest_attempt: attempts,
+                             ci_url: "https://github.com/acme/shop/actions/runs/9", expected_shards: 2, status: "passed")
+      kase = create(:test_case, project: project, file_path: "spec/x_spec.rb", full_name: "Test X #{SecureRandom.hex(2)}")
+      first = [ 1, 2 ].map { |i| create(:run, project: project, build: build, attempt: 1, shard_label: "test##{i}", status: i == 1 ? "failed" : "passed", flakiness_analyzed_at: Time.current) }
+      create(:test_result, run: first[0], test_case: kase, status: "failed", superseded: true)
+      second = create(:run, project: project, build: build, attempt: 2, shard_label: "test#1", status: "passed", flakiness_analyzed_at: 1.hour.ago)
+      create(:test_result, run: second, test_case: kase, status: "passed")
+      build
+    end
+
+    it "shows attempt summaries, badges and the fixed-by-re-run section" do
+      build = rerun_build
+      get project_build_path(project, build)
+      page = Nokogiri::HTML(response.body)
+      expect(page.text.squish).to include("Attempt 1 · 2 jobs · Failed", "Attempt 2 · 1 job · Passed")
+      expect(page.css("a span").map { |n| n.text.strip }).to include("Attempt 2")
+      fixed = page.at_css("details[data-testid=fixed-by-rerun]")
+      expect(fixed.at_css("summary").text.strip).to eq("Fixed by re-run")
+      expect(fixed.text.squish).to include("Test X", "attempt 2")
+      expect(page.css("[data-testid=build-tile]").find { |t| t.text.include?("Failed") }.at_css("p").text).to eq("0")
+      expect(page.at_css("[data-testid=attempts] a")["href"]).to eq("https://github.com/acme/shop/actions/runs/9/attempts/1")
+    end
+
+    it "renders nothing extra for single-attempt and non-GitHub builds" do
+      single = create(:build, project: project, ci_run_key: "github_actions:acme/shop:10", latest_attempt: 1)
+      create(:run, project: project, build: single)
+      azure = create(:build, project: project, ci_run_key: nil, latest_attempt: 2)
+      [ single, azure ].each do |build|
+        get project_build_path(project, build)
+        expect(response.body).not_to match(/Attempt \d|Fixed by re-run/)
+      end
+    end
+
+    it "does not add queries per attempt" do
+      counts = [ 2, 5 ].map do |n|
+        build = rerun_build(attempts: n)
+        (3..n).each { |a| create(:run, project: project, build: build, attempt: a, flakiness_analyzed_at: 1.hour.ago) }
+        count = 0
+        counter = ->(*, payload) { count += 1 unless %w[SCHEMA CACHE TRANSACTION].include?(payload[:name]) }
+        ActiveSupport::Notifications.subscribed(counter, "sql.active_record") { get project_build_path(project, build) }
+        count
+      end
+      expect(counts.last).to eq(counts.first)
+    end
+  end
+
   it "keeps the query count flat when the build has no comparison branch" do
     build = create(:build, project: project, branch: "feature", default_branch: nil, pr_base_branch: nil, expected_shards: 1)
     run = create(:run, project: project, build: build, flakiness_analyzed_at: Time.current)

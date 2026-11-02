@@ -30,7 +30,7 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds", type: :request do
     expect(body["data"].map { |entry| entry["id"] }).to eq([ build.id, older.id ])
     expect(body["data"].first).to eq(
       "id" => build.id, "build_key" => build.build_key, "branch" => "main", "commit_sha" => "abc123",
-      "commit_message" => "Fix login", "status" => "failed",
+      "commit_message" => "Fix login", "status" => "failed", "attempt" => 1,
       "counts" => { "total" => 4, "passed" => 3, "failed" => 1, "skipped" => 0, "pending" => 0, "flaky" => 0, "quarantined" => 0 },
       "pass_rate" => 75, "gate_status" => "pending", "duration_ms" => 1200,
       "pr" => { "number" => 7, "url" => "https://github.com/RaiderHQ/demo/pull/7" }, "ci_url" => "https://ci.example/1",

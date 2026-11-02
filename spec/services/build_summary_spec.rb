@@ -74,6 +74,14 @@ RSpec.describe BuildSummary do
     expect(md).not_to include("second line")
   end
 
+  it "does not list a failure superseded by a later attempt" do
+    tc = create(:test_case, project: project, full_name: "healed", file_path: "spec/h_spec.rb")
+    create(:test_result, run: create(:run, project: project, build: build, attempt: 1), test_case: tc, status: "failed")
+    create(:test_result, run: create(:run, project: project, build: build, attempt: 2), test_case: tc, status: "passed")
+    build.mark_superseded!
+    expect(markdown).not_to include("healed")
+  end
+
   it "truncates errors to 120 characters" do
     result(status: "failed", message: "x" * 300)
     row = markdown.lines.grep(/\| x+/).first

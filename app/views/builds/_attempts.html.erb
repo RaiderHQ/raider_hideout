@@ -1,0 +1,12 @@
+<ul class="mb-6 flex flex-wrap gap-2 text-sm" data-testid="attempts">
+  <% summaries.each do |summary| %>
+    <li class="px-3 py-1.5 rounded-md border border-neutral-bdr bg-neutral-wh" data-testid="attempt">
+      <span class="font-medium">Attempt <%= summary.attempt %> · <%= pluralize(summary.run_count, "job") %> · <%= summary.status.capitalize %></span>
+      <span class="text-xs text-neutral-mid">
+        · <span class="text-status-ok"><%= summary.counts[:passed] %></span> / <span class="text-status-err"><%= summary.counts[:failed] %></span>
+        <% unless summary.ready %>· in progress<% end %>
+        <% if summary.ci_url.to_s.match?(%r{\Ahttps?://}i) %>· <%= link_to "CI", summary.ci_url, class: "text-ruby", target: "_blank", rel: "noopener noreferrer" %><% end %>
+      </span>
+    </li>
+  <% end %>
+</ul>

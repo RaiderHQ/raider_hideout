@@ -2,13 +2,20 @@ module Notifications
   module Rules
     CANDIDATES = 20
 
-    def self.call(channel, build)
+    def self.call(channel, build, attempt: 1)
       events = []
       events << "failed" if channel.on_failed && build.status == "failed"
-      events << "recovered" if channel.on_recovered && build.status == "passed" && previous_failed?(build)
+      events << "recovered" if channel.on_recovered && build.status == "passed" && recovered?(build, attempt)
       events << "new_flaky" if channel.on_new_flaky && new_flaky?(build)
       events << "low_pass_rate" if low_pass_rate?(channel, build)
       events
+    end
+
+    # A re-run recovers the build when it passed and some earlier-attempt failure was fixed.
+    def self.recovered?(build, attempt)
+      return build.fixed_by_rerun.any? if build.rerun_attempt?(attempt)
+
+      previous_failed?(build)
     end
 
     def self.previous_failed?(build)
