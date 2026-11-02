@@ -1,6 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { renderSnapshot } from "trace/snapshot"
-import { notCaptured, renderConsole, renderDetail, renderNetwork, renderNotices, renderTimeline, showScreenshot } from "trace/panels"
+import { objects, notCaptured, renderConsole, renderDetail, renderNetwork, renderNotices, renderTimeline, showScreenshot } from "trace/panels"
 import { MAX_ZIP_BYTES, TraceError, readZip, loadTrace } from "trace/zip_reader"
 
 // Fetches the trace zip, reads it in the browser and hands it to the renderer.
@@ -45,7 +45,7 @@ export default class extends Controller {
 
   async render(trace) {
     this.trace = trace
-    this.steps = Array.isArray(trace.index.steps) ? trace.index.steps : []
+    this.steps = objects(trace.index.steps)
     this.showAll = { network: false, console: false }
     renderNotices(this.target("notices"), trace.index.truncated)
     this.showTab("network")

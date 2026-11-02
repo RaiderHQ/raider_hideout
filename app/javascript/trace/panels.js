@@ -112,7 +112,8 @@ export function showScreenshot(slot, url, step, previous, dpr) {
     box.style.top = `${(rect.y * scale / img.naturalHeight) * 100}%`
     box.style.width = `${(rect.width * scale / img.naturalWidth) * 100}%`
     box.style.height = `${(rect.height * scale / img.naturalHeight) * 100}%`
-    wrap.append(box, el("p", { text: "element before the action", className: "text-xs text-neutral-mid" }))
+    wrap.append(box)
+    wrap.after(el("p", { text: "element before the action", className: "text-xs text-neutral-mid" }))
   }
   if (img.complete) place()
   else img.addEventListener("load", place, { once: true })
@@ -131,7 +132,8 @@ function tabPanel(container, capability, rows, showAll, onToggle, describe) {
   container.replaceChildren(toggle, ...body)
 }
 
-const rowsFor = (list, selectedIndex, showAll) => (Array.isArray(list) ? list : []).filter((row) => showAll || row.step_index === selectedIndex)
+export const objects = (list) => (Array.isArray(list) ? list : []).filter((item) => item !== null && typeof item === "object" && !Array.isArray(item))
+const rowsFor = (list, selectedIndex, showAll) => objects(list).filter((row) => showAll || row.step_index === selectedIndex)
 const rowClass = "text-sm font-mono break-all border-b border-neutral-100 py-1"
 
 export function renderNetwork(container, index, selectedIndex, showAll, onToggle) {

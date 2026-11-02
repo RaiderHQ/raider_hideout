@@ -109,10 +109,23 @@ RSpec.describe "Trace viewer panels", type: :system do
     expect(page).to have_css("#trace-network [data-testid=trace-network-row]", text: "/api")
   end
 
+  it "ignores null items in steps, network and console" do
+    open_json(data.merge("steps" => [nil, data["steps"][0]], "network" => [nil], "console" => [nil]))
+    expect(page).to have_css("[data-testid=trace-step]", count: 1)
+    click_on "Console"
+    expect(page).to have_css("#trace-console", text: "Nothing during this step")
+  end
+
   it "has no horizontal scroll at phone width" do
-    page.driver.browser.manage.window.resize_to(375, 800)
-    open_trace(file_fixture("trace-v1.zip").binread)
-    expect(page).to have_css("[data-testid=trace-step]", minimum: 1)
-    expect(page.evaluate_script("document.documentElement.scrollWidth <= document.documentElement.clientWidth")).to be(true)
+    window = Capybara.current_session.current_window
+    original = window.size
+    begin
+      window.resize_to(375, 800)
+      open_trace(file_fixture("trace-v1.zip").binread)
+      expect(page).to have_css("[data-testid=trace-step]", minimum: 1)
+      expect(page.evaluate_script("document.documentElement.scrollWidth <= document.documentElement.clientWidth")).to be(true)
+    ensure
+      window.resize_to(*original)
+    end
   end
 end
