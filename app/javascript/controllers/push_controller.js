@@ -18,13 +18,7 @@ export default class extends Controller {
         return this.show("Notifications are blocked for this site in your browser settings.")
       }
       const registration = await navigator.serviceWorker.ready
-      // A subscription made with a different key (rotated or changed VAPID pair) makes subscribe() throw, so always replace it.
-      const existing = await registration.pushManager.getSubscription()
-      if (existing) await existing.unsubscribe()
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: this.urlBase64ToUint8Array(this.publicKeyValue)
-      })
+      const subscription = await this.currentSubscription(registration)
       const response = await fetch(this.urlValue, {
         method: "POST",
         headers: {
@@ -39,6 +33,23 @@ export default class extends Controller {
     } catch (error) {
       this.show("Could not turn on notifications. Try again.")
     }
+  }
+
+  // Reuses this browser's subscription when it was made with our key (the server upserts it, so a
+  // re-tap adds no device). A subscription made with another key makes subscribe() throw, so replace it.
+  async currentSubscription(registration) {
+    const applicationServerKey = this.urlBase64ToUint8Array(this.publicKeyValue)
+    const existing = await registration.pushManager.getSubscription()
+    if (existing) {
+      const current = existing.options && existing.options.applicationServerKey
+      if (current && this.sameBytes(new Uint8Array(current), applicationServerKey)) return existing
+      await existing.unsubscribe()
+    }
+    return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey })
+  }
+
+  sameBytes(a, b) {
+    return a.length === b.length && a.every((byte, i) => byte === b[i])
   }
 
   show(text) {

@@ -17,28 +17,41 @@ RSpec.describe "Phone notifications", type: :system do
     ActionController::Base.allow_forgery_protection = original
   end
 
-  def fake_push_service(permission: "granted", stale: false)
+  # existing: nil (no subscription), :same (made with this server's key) or :different (another key).
+  # Models a browser that holds one subscription: getSubscription returns it, unsubscribe drops it.
+  def fake_push_service(permission: "granted", existing: nil)
+    server_key = Base64.urlsafe_decode64(VapidKey.current.public_key).bytes
+    other_key = Array.new(65, 7)
+    existing_key = { same: server_key, different: other_key }[existing]
     source = <<~JS
       (() => {
         Object.defineProperty(Notification, "requestPermission", { value: () => Promise.resolve(#{permission.to_json}), configurable: true });
-        const bytes = (n, first) => { const a = new Uint8Array(n).map((_, i) => i + 1); if (first !== undefined) a[0] = first; return a; };
+        const bytes = (n) => new Uint8Array(n).map((_, i) => i + 1);
         const b64url = (a) => btoa(String.fromCharCode(...a)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
-        window.__staleUnsubscribed = false;
-        PushManager.prototype.getSubscription = function () {
-          return Promise.resolve(#{stale} ? { unsubscribe: () => { window.__staleUnsubscribed = true; return Promise.resolve(true); } } : null);
-        };
+        const make = (endpoint, key) => ({
+          options: { applicationServerKey: key ? new Uint8Array(key).buffer : null },
+          unsubscribe: () => { window.__unsubscribed = true; window.__current = null; return Promise.resolve(true); },
+          toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh: #{valid_p256dh.to_json}, auth: b64url(bytes(16)) } })
+        });
+        window.__unsubscribed = false;
+        window.__current = #{existing_key ? "make(\"https://fcm.googleapis.com/fcm/send/system-spec-existing\", #{existing_key.to_json})" : "null"};
+        PushManager.prototype.getSubscription = () => Promise.resolve(window.__current);
         PushManager.prototype.subscribe = function (options) {
           window.__applicationServerKey = Array.from(new Uint8Array(options.applicationServerKey));
           window.__userVisibleOnly = options.userVisibleOnly;
-          return Promise.resolve({ toJSON: () => ({
-            endpoint: "https://fcm.googleapis.com/fcm/send/system-spec-device",
-            expirationTime: null,
-            keys: { p256dh: #{valid_p256dh.to_json}, auth: b64url(bytes(16)) }
-          }) });
+          window.__current = make("https://fcm.googleapis.com/fcm/send/system-spec-device", Array.from(new Uint8Array(options.applicationServerKey)));
+          return Promise.resolve(window.__current);
         };
       })();
     JS
-    cdp.execute_cdp("Page.addScriptToEvaluateOnNewDocument", source: source)
+    @fake_script_id = cdp.execute_cdp("Page.addScriptToEvaluateOnNewDocument", source: source)["identifier"]
+  end
+
+  # The browser is shared between examples: restore its user agent and drop the injected script.
+  before { @default_user_agent = cdp.execute_cdp("Browser.getVersion")["userAgent"] }
+  after do
+    cdp.execute_cdp("Page.removeScriptToEvaluateOnNewDocument", identifier: @fake_script_id) if @fake_script_id
+    cdp.execute_cdp("Network.setUserAgentOverride", userAgent: @default_user_agent)
   end
 
   def sign_in_as(user)
@@ -92,14 +105,26 @@ RSpec.describe "Phone notifications", type: :system do
     end
   end
 
-  it "replaces a stale browser subscription before subscribing" do
-    fake_push_service(stale: true)
+  it "reuses a subscription made with this server's key: no unsubscribe, one device after two taps" do
+    fake_push_service(existing: :same)
     sign_in_as(user)
     visit phone_notifications_path
     click_on "Turn on notifications"
     expect(page).to have_css("li", text: "Remove")
-    expect(page.evaluate_script("window.__staleUnsubscribed")).to be(true)
-    expect(PushSubscription.sole.endpoint).to eq("https://fcm.googleapis.com/fcm/send/system-spec-device")
+    click_on "Turn on notifications"
+    expect(page).to have_css("li", text: "Remove", count: 1)
+    expect(page.evaluate_script("window.__unsubscribed")).to be(false)
+    expect(PushSubscription.pluck(:endpoint)).to eq([ "https://fcm.googleapis.com/fcm/send/system-spec-existing" ])
+  end
+
+  it "replaces a subscription made with a different key" do
+    fake_push_service(existing: :different)
+    sign_in_as(user)
+    visit phone_notifications_path
+    click_on "Turn on notifications"
+    expect(page).to have_css("li", text: "Remove")
+    expect(page.evaluate_script("window.__unsubscribed")).to be(true)
+    expect(PushSubscription.pluck(:endpoint)).to eq([ "https://fcm.googleapis.com/fcm/send/system-spec-device" ])
   end
 
   it "says so when notifications are blocked and stores nothing" do

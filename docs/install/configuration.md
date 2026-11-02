@@ -85,7 +85,7 @@ Without `SMTP_ADDRESS`, invitations show a link to copy, the forgot-password lin
 | Variable | Default | What it does |
 |---|---|---|
 | `HIDEOUT_VAPID_PUBLIC_KEY`, `HIDEOUT_VAPID_PRIVATE_KEY` | generated, stored encrypted in the database | Your own VAPID pair. Set both or neither; one alone fails. While set, `hideout:vapid:rotate` refuses to run. Setting or changing these after devices subscribed means every device must turn notifications on again; until then sends fail as unauthorized and are only logged. |
-| `HIDEOUT_VAPID_SUBJECT` | the owner's `mailto:` address, else the project URL | Contact sent to push services. Changing the VAPID pair (`HIDEOUT_VAPID_*`) after devices subscribed means every device must turn notifications on again; sends fail as unauthorized and are only logged until then. |
+| `HIDEOUT_VAPID_SUBJECT` | the owner's `mailto:` address, else the project URL | Contact sent to push services. |
 | `HIDEOUT_PUSH_HOSTS` | — | Extra push hosts, comma-separated. Added to the default allowlist (`fcm.googleapis.com`, `*.push.apple.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`). |
 
 Phones need HTTPS; see the README's Phone section.
