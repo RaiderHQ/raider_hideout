@@ -2,35 +2,35 @@
   <div id="quarantine" class="space-y-4">
     <p class="text-xs uppercase tracking-wider text-neutral-mid">Quarantine</p>
     <% if quarantine %>
-      <p class="text-sm" data-testid="quarantine-banner">Quarantined until <%= quarantine_date(quarantine.expires_at) %> by <%= quarantine_actor(quarantine.created_by) %>: <%= quarantine.reason %></p>
+      <p class="text-sm break-words" data-testid="quarantine-banner">Quarantined until <%= quarantine_date(quarantine.expires_at) %> by <%= quarantine_actor(quarantine.created_by) %>: <%= quarantine.reason %></p>
       <% if role_at_least?(:member) %>
-        <div class="flex flex-wrap gap-6">
-          <%= form_with url: project_quarantine_path(current_project, quarantine), method: :patch, scope: :quarantine, class: "flex flex-wrap items-end gap-2" do |f| %>
-            <label class="text-sm">Extend by
-              <%= f.select :days, quarantine_duration_options, { selected: Quarantine::DEFAULT_DURATION }, id: "extend_days", class: ExploreHelper::FIELD_CLASSES %>
+        <div class="flex flex-col md:flex-row md:flex-wrap gap-6">
+          <%= form_with url: project_quarantine_path(current_project, quarantine), method: :patch, scope: :quarantine, class: "flex flex-wrap items-end gap-2 w-full md:w-auto" do |f| %>
+            <label class="text-sm w-full md:w-auto">Extend by
+              <%= f.select :days, quarantine_duration_options, { selected: Quarantine::DEFAULT_DURATION }, id: "extend_days", class: "#{ExploreHelper::FIELD_CLASSES} md:w-auto min-h-11 md:min-h-0" %>
             </label>
-            <label class="text-sm">Note
-              <%= f.text_field :note, id: "extend_note", maxlength: QuarantineEvent::MAX_NOTE, class: ExploreHelper::FIELD_CLASSES %>
+            <label class="text-sm w-full md:w-auto">Note
+              <%= f.text_field :note, id: "extend_note", maxlength: QuarantineEvent::MAX_NOTE, class: "#{ExploreHelper::FIELD_CLASSES} md:w-auto min-h-11 md:min-h-0" %>
             </label>
-            <%= f.submit "Extend", class: button_classes(:secondary, extra: "min-w-0") %>
+            <%= f.submit "Extend", class: button_classes(:secondary, extra: "min-w-0 w-full md:w-auto") %>
           <% end %>
-          <%= form_with url: project_quarantine_path(current_project, quarantine), method: :delete, scope: :quarantine, class: "flex flex-wrap items-end gap-2" do |f| %>
-            <label class="text-sm">Note
-              <%= f.text_field :note, id: "release_note", maxlength: QuarantineEvent::MAX_NOTE, class: ExploreHelper::FIELD_CLASSES %>
+          <%= form_with url: project_quarantine_path(current_project, quarantine), method: :delete, scope: :quarantine, class: "flex flex-wrap items-end gap-2 w-full md:w-auto" do |f| %>
+            <label class="text-sm w-full md:w-auto">Note
+              <%= f.text_field :note, id: "release_note", maxlength: QuarantineEvent::MAX_NOTE, class: "#{ExploreHelper::FIELD_CLASSES} md:w-auto min-h-11 md:min-h-0" %>
             </label>
-            <%= f.submit "Release", class: button_classes(:outline, extra: "min-w-0") %>
+            <%= f.submit "Release", class: button_classes(:outline, extra: "min-w-0 w-full md:w-auto") %>
           <% end %>
         </div>
       <% end %>
     <% elsif role_at_least?(:member) %>
-      <%= form_with url: project_test_case_quarantines_path(current_project, test_case), scope: :quarantine, class: "flex flex-wrap items-end gap-2" do |f| %>
-        <label class="text-sm flex-1 min-w-[12rem]">Reason
-          <%= f.text_field :reason, id: "quarantine_reason", required: true, maxlength: Quarantine::MAX_REASON, class: ExploreHelper::FIELD_CLASSES %>
+      <%= form_with url: project_test_case_quarantines_path(current_project, test_case), scope: :quarantine, class: "flex flex-wrap items-end gap-2 w-full md:w-auto" do |f| %>
+        <label class="text-sm w-full md:w-auto md:flex-1 md:min-w-[12rem]">Reason
+          <%= f.text_field :reason, id: "quarantine_reason", required: true, maxlength: Quarantine::MAX_REASON, class: "#{ExploreHelper::FIELD_CLASSES} md:w-auto min-h-11 md:min-h-0" %>
         </label>
-        <label class="text-sm">Duration
-          <%= f.select :days, quarantine_duration_options, { selected: Quarantine::DEFAULT_DURATION }, id: "quarantine_days", class: ExploreHelper::FIELD_CLASSES %>
+        <label class="text-sm w-full md:w-auto">Duration
+          <%= f.select :days, quarantine_duration_options, { selected: Quarantine::DEFAULT_DURATION }, id: "quarantine_days", class: "#{ExploreHelper::FIELD_CLASSES} md:w-auto min-h-11 md:min-h-0" %>
         </label>
-        <%= f.submit "Quarantine", class: button_classes(:primary, extra: "min-w-0") %>
+        <%= f.submit "Quarantine", class: button_classes(:primary, extra: "min-w-0 w-full md:w-auto") %>
       <% end %>
     <% else %>
       <p class="text-sm text-neutral-mid">Not quarantined.</p>

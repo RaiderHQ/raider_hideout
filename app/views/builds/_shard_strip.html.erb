@@ -1,8 +1,8 @@
 <div class="mb-6 flex flex-wrap gap-2">
   <% runs.each do |run| %>
-    <%= link_to project_run_path(project, run), class: "inline-flex items-center gap-2 px-3 py-1.5 rounded-md border border-neutral-bdr bg-neutral-wh text-sm hover:shadow-card-hover" do %>
+    <%= link_to project_run_path(project, run), class: "inline-flex flex-wrap items-center gap-2 max-w-full min-h-11 md:min-h-0 px-3 py-1.5 rounded-md border border-neutral-bdr bg-neutral-wh text-sm hover:shadow-card-hover" do %>
       <%= status_pill(run.status) %>
-      <span><%= run.shard_label.presence || "Run ##{run.id}" %></span>
+      <span class="min-w-0 break-words"><%= run.shard_label.presence || "Run ##{run.id}" %></span>
       <% if show_attempts %><span class="text-[11px] px-2 py-0.5 rounded-sm bg-ruby-sub text-ruby">Attempt <%= run.attempt %></span><% end %>
     <% end %>
   <% end %>

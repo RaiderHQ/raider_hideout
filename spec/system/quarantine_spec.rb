@@ -48,4 +48,28 @@ RSpec.describe "Quarantine", type: :system do
     expect(page).to have_content("No tests are quarantined.")
     expect(page).to have_css("[data-quarantine-event]", count: 3)
   end
+
+  it "quarantines and releases at phone width" do
+    run = create(:run, project: project)
+    create(:test_result, run: run, test_case: flaky, status: "failed", exception_class: "RuntimeError", failure_message: "boom")
+    sign_in_as(member)
+
+    at_phone_width(360) do
+      visit project_build_path(project, run.build)
+      click_on "History"
+      expect(page).to have_field("quarantine_reason")
+      expect_no_horizontal_scroll
+      expect_tap_targets("#quarantine input:not([type=hidden]), #quarantine select")
+
+      fill_in "quarantine_reason", with: "Waits on the mail server"
+      click_on "Quarantine"
+      expect(page).to have_css("[data-testid=quarantine-banner]", text: "Waits on the mail server")
+      expect_no_horizontal_scroll
+      expect_tap_targets("#quarantine input:not([type=hidden]), #quarantine select")
+
+      click_on "Release"
+      expect(page).to have_content("Quarantine released.")
+      expect_no_horizontal_scroll
+    end
+  end
 end
