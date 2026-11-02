@@ -22,7 +22,8 @@ class PushSubscription < ApplicationRecord
       return false unless uri.is_a?(URI::HTTPS) && uri.userinfo.nil? && uri.port == 443
 
       host = uri.host.to_s.downcase.delete_suffix(".")
-      return false if host.empty? || ip_literal?(host)
+      return false unless well_formed_hostname?(host)
+      return false if ip_literal?(host)
 
       allowed_hosts.any? { |pattern| host_matches?(host, pattern) }
     rescue URI::InvalidURIError
@@ -52,6 +53,11 @@ class PushSubscription < ApplicationRecord
       else
         host == pattern
       end
+    end
+
+    # Letters, digits and hyphens in dot-separated, non-empty labels; nothing else reaches the allowlist.
+    def well_formed_hostname?(host)
+      host.match?(/\A[a-z0-9-]+(\.[a-z0-9-]+)*\z/)
     end
 
     def ip_literal?(host)

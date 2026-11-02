@@ -23,7 +23,7 @@ RSpec.describe "Phone notifications", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("Phone notifications",
-        "On iPhone and iPad, add Hideout to your Home Screen first (Share → Add to Home Screen). iOS 16.4 or later.",
+        "On iPhone and iPad, add Hideout to your Home Screen first (Share → Add to Home Screen). iOS 17.2 or later.",
         "Turn on notifications", "Checkout")
       expect(response.body).not_to include("Secret", "OtherPersonPhone")
       expect(page_html.css("li button").map(&:text)).to eq([ "Remove" ])
@@ -45,7 +45,7 @@ RSpec.describe "Phone notifications", type: :request do
     it "saves the switches and mutes unchecked projects" do
       second = create(:project, owner: user, name: "Search")
       patch phone_notifications_path, params: { push_preference: { default_branch_failures: "0", new_flaky: "1", gate_failures: "1" },
-                                                project_ids: [ mine.id.to_s ] }
+                                                shown_project_ids: [ mine.id.to_s, second.id.to_s ], project_ids: [ mine.id.to_s ] }
       expect(response).to redirect_to(phone_notifications_path)
       expect(user.push_preference!).to have_attributes(default_branch_failures: false, new_flaky: true, gate_failures: true, rerun_results: true)
       expect(user.push_muted_projects.pluck(:project_id)).to eq([ second.id ])
@@ -56,10 +56,34 @@ RSpec.describe "Phone notifications", type: :request do
     end
 
     it "ignores project ids outside the user's projects and never mutes them" do
-      patch phone_notifications_path, params: { project_ids: [ mine.id.to_s, other_org_project.id.to_s, "junk" ] }
+      patch phone_notifications_path, params: { shown_project_ids: [ mine.id.to_s, other_org_project.id.to_s, "junk" ],
+                                                project_ids: [ mine.id.to_s, other_org_project.id.to_s, "junk" ] }
       expect(PushMutedProject.count).to eq(0)
-      patch phone_notifications_path, params: { project_ids: [ other_org_project.id.to_s ] }
+      patch phone_notifications_path, params: { shown_project_ids: [ mine.id.to_s, other_org_project.id.to_s ],
+                                                project_ids: [ other_org_project.id.to_s ] }
       expect(user.push_muted_projects.pluck(:project_id)).to eq([ mine.id ])
+    end
+
+    it "leaves a project created after the page was rendered unmuted" do
+      get phone_notifications_path
+      newer = create(:project, owner: user, name: "Newer")
+      patch phone_notifications_path, params: { shown_project_ids: [ mine.id.to_s ], project_ids: [] }
+      expect(user.push_muted_projects.pluck(:project_id)).to eq([ mine.id ])
+      expect(newer).not_to be_nil
+    end
+
+    it "leaves existing mutes untouched when no project params are posted" do
+      create(:project, owner: user, name: "Unmuted")
+      user.push_muted_projects.create!(project: mine)
+      patch phone_notifications_path, params: { push_preference: { new_flaky: "1" } }
+      expect(response).to redirect_to(phone_notifications_path)
+      expect(user.push_muted_projects.pluck(:project_id)).to eq([ mine.id ])
+      expect(user.push_preference!.new_flaky).to be(true)
+    end
+
+    it "ignores a push_preference that is not an object" do
+      patch phone_notifications_path, params: { push_preference: "boom" }
+      expect(response).to redirect_to(phone_notifications_path)
     end
 
     it "does not touch another user's preferences or mutes" do
@@ -67,7 +91,7 @@ RSpec.describe "Phone notifications", type: :request do
       other.push_preference!
       create(:membership, user: other, organization: mine.organization)
       other.push_muted_projects.create!(project: mine)
-      patch phone_notifications_path, params: { push_preference: { new_flaky: "1" }, project_ids: [ mine.id.to_s ] }
+      patch phone_notifications_path, params: { push_preference: { new_flaky: "1" }, shown_project_ids: [ mine.id.to_s ], project_ids: [ mine.id.to_s ] }
       expect(other.push_preference!.new_flaky).to be(false)
       expect(other.push_muted_projects.count).to eq(1)
     end

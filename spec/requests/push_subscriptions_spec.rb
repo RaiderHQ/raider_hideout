@@ -85,6 +85,30 @@ RSpec.describe "Push subscriptions", type: :request do
       expect(user.push_subscriptions.count).to eq(0)
     end
 
+    it "answers 422, not 500, when keys is not an object" do
+      post_json(payload.merge(keys: [ 1 ]))
+      expect(response).to have_http_status(:unprocessable_content)
+      post_json(payload.merge(keys: "x"))
+      expect(response).to have_http_status(:unprocessable_content)
+    end
+
+    it "treats losing a same-user insert race as an upsert" do
+      original = PushSubscription.instance_method(:save)
+      raced = false
+      allow_any_instance_of(PushSubscription).to receive(:save) do |sub, *args|
+        unless raced
+          raced = true
+          user.push_subscriptions.create!(endpoint: fcm_endpoint, p256dh: valid_p256dh, auth: valid_auth, device_label: "Mac")
+          raise ActiveRecord::RecordNotUnique
+        end
+        original.bind_call(sub, *args)
+      end
+      new_auth = b64url(Array.new(16, 5))
+      post_json(payload.merge(keys: { p256dh: valid_p256dh, auth: new_auth }))
+      expect(response).to have_http_status(:created)
+      expect(user.push_subscriptions.sole.auth).to eq(new_auth)
+    end
+
     it "uses a supplied label, truncated to 60 characters" do
       post_json(payload.merge(device_label: "L" * 80))
       expect(user.push_subscriptions.sole.device_label).to eq("L" * 60)
@@ -113,8 +137,8 @@ RSpec.describe "Push subscriptions", type: :request do
 
   it "enforces CSRF: 422 without a token" do
     original = ActionController::Base.allow_forgery_protection
-    ActionController::Base.allow_forgery_protection = true
     sign_in(user)
+    ActionController::Base.allow_forgery_protection = true
     post_json(payload)
     expect(response).to have_http_status(:unprocessable_content)
     expect(PushSubscription.count).to eq(0)

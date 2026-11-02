@@ -8,6 +8,15 @@ RSpec.describe "Phone notifications", type: :system do
   # Headless Chrome cannot reach a real push service, so only the browser's push service is
   # faked: permission resolves "granted" and PushManager.subscribe returns an FCM endpoint
   # with valid fake keys. The button, the POST, CSRF, controller and page are real.
+  # Test env turns forgery protection off; switch it on so the fetch's X-CSRF-Token is checked.
+  around do |example|
+    original = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    example.run
+  ensure
+    ActionController::Base.allow_forgery_protection = original
+  end
+
   def fake_push_service(permission: "granted")
     source = <<~JS
       (() => {

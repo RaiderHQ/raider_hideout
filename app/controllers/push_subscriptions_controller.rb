@@ -18,7 +18,12 @@ class PushSubscriptionsController < ApplicationController
       render_errors(subscription.errors.full_messages)
     end
   rescue ActiveRecord::RecordNotUnique
-    render_errors([ "Endpoint is already registered" ])
+    # A concurrent post of the same endpoint won the insert: if it is this user's, treat ours as the upsert.
+    existing = Current.user.push_subscriptions.find_by(endpoint: endpoint_param)
+    return render_errors([ "Endpoint is already registered" ]) unless existing
+
+    existing.update(p256dh: key_param(:p256dh), auth: key_param(:auth)) ?
+      render(json: { id: existing.id }, status: :created) : render_errors(existing.errors.full_messages)
   end
 
   def destroy
@@ -36,7 +41,7 @@ class PushSubscriptionsController < ApplicationController
 
   def key_param(name)
     keys = params[:keys]
-    string_param(keys.respond_to?(:[]) && !keys.is_a?(String) ? keys[name] : nil)
+    string_param(keys.is_a?(ActionController::Parameters) ? keys[name] : nil)
   end
 
   # Only plain strings are accepted; arrays and hashes from a hand-made request become blank.

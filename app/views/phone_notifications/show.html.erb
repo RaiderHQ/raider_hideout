@@ -1,6 +1,6 @@
 <% content_for :title, "Phone notifications · Raider Hideout" %>
 <h1 class="text-2xl font-semibold mb-2">Phone notifications</h1>
-<p class="text-neutral-dk mb-6">On iPhone and iPad, add Hideout to your Home Screen first (Share → Add to Home Screen). iOS 16.4 or later.</p>
+<p class="text-neutral-dk mb-6">On iPhone and iPad, add Hideout to your Home Screen first (Share → Add to Home Screen). iOS 17.2 or later.</p>
 
 <%= panel(extra: "mb-6") do %>
   <h2 class="text-lg font-semibold mb-4">This device</h2>
@@ -45,6 +45,7 @@
       <div class="flex flex-col">
         <% @projects.each do |project| %>
           <label class="flex items-center gap-3 min-h-11 text-sm">
+            <%= hidden_field_tag "shown_project_ids[]", project.id, id: nil %>
             <%= check_box_tag "project_ids[]", project.id, !@muted_ids.include?(project.id), id: "project_ids_#{project.id}", class: "h-5 w-5" %>
             <span class="min-w-0 break-words"><%= project.name %></span>
           </label>
