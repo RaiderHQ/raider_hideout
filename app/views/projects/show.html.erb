@@ -23,7 +23,7 @@
 <% builds = @project.recent_builds.to_a %>
 <% rate = @project.average_pass_rate(builds) %>
 <% duration = @project.average_duration_ms(builds) %>
-<div class="grid gap-4 grid-cols-2 lg:grid-cols-4 mb-6">
+<div class="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-4 mb-6" data-testid="stat-tiles">
   <% [["Pass rate", rate ? "#{rate}%" : "–"], ["Builds", @project.builds.count], ["Flaky", @project.flaky_count],
       ["Avg duration", duration ? "#{(duration / 1000.0).round(1)}s" : "–"]].each do |label, value| %>
     <%= panel do %>

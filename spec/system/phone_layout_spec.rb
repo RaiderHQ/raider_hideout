@@ -53,6 +53,13 @@ RSpec.describe "Phone layout", type: :system do
             expect_tap_targets("main a, main button, main select, main summary")
           end
 
+          visit project_path(project)
+          tile_lefts = page.evaluate_script(
+            "Array.from(document.querySelectorAll('[data-testid=stat-tiles] > div')).map(function (el) { return el.getBoundingClientRect().left })"
+          )
+          expect(tile_lefts.size).to eq(4)
+          expect(tile_lefts.uniq.size).to eq(1)
+
           visit project_builds_path(project)
           row_widths = page.evaluate_script(
             "Array.from(document.querySelectorAll('#builds > div')).map(function (el) { return el.getBoundingClientRect().width })"
