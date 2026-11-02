@@ -5,6 +5,9 @@ class TestResult < ApplicationRecord
   STEP_TITLE_LIMIT = 500
   COMPARISONS_LIMIT = 50
   COMPARISON_STATUSES = %w[passed failed created updated].freeze
+  COMPARISON_PIXELS_MAX = 1_000_000_000
+  COMPARISON_DIMENSION_MAX = 100_000
+  COMPARISON_RATIO_MAX = 1.0
   COMPARISON_NAME_LIMIT = 100
   COMPARISON_BASELINE_LIMIT = 300
   COMPARISON_NAME_FORMAT = %r{\A[A-Za-z0-9_/-]+\z}
@@ -73,15 +76,17 @@ class TestResult < ApplicationRecord
   end
 
   def self.comparison_count(value)
-    value if value.is_a?(Integer) && value >= 0
+    value if value.is_a?(Integer) && value.between?(0, COMPARISON_PIXELS_MAX)
   end
 
   def self.comparison_number(value)
-    value if (value.is_a?(Integer) || (value.is_a?(Float) && value.finite?)) && value >= 0
+    return unless (value.is_a?(Integer) || (value.is_a?(Float) && value.finite?)) && value.between?(0, COMPARISON_RATIO_MAX)
+
+    value.is_a?(Float) && value.zero? ? 0.0 : value
   end
 
   def self.comparison_size(value)
-    value.dup if value.is_a?(Array) && value.size == 2 && value.all? { |side| comparison_count(side) }
+    value.dup if value.is_a?(Array) && value.size == 2 && value.all? { |side| side.is_a?(Integer) && side.between?(0, COMPARISON_DIMENSION_MAX) }
   end
 
   private_class_method :normalized_comparison, :comparison_count, :comparison_number, :comparison_size

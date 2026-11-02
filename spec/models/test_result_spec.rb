@@ -62,6 +62,28 @@ RSpec.describe TestResult do
       end
     end
 
+    it "bounds counts, sizes and ratios" do
+      pick = ->(attrs) { normalize(entry.merge(attrs)).first }
+      expect(pick.call("diff_pixels" => 10**20_000)["diff_pixels"]).to be_nil
+      expect(pick.call("diff_pixels" => 10**9)["diff_pixels"]).to eq(10**9)
+      expect(pick.call("diff_pixels" => 10**9 + 1)["diff_pixels"]).to be_nil
+      expect(pick.call("max_diff_pixels" => 10**9 + 1)["max_diff_pixels"]).to be_nil
+      expect(pick.call("expected_size" => [ 100_001, 1 ])["expected_size"]).to be_nil
+      expect(pick.call("actual_size" => [ 1, 100_001 ])["actual_size"]).to be_nil
+      expect(pick.call("actual_size" => [ 100_000, 100_000 ])["actual_size"]).to eq([ 100_000, 100_000 ])
+      %w[diff_ratio threshold max_diff_ratio].each do |field|
+        expect(pick.call(field => 1.0)[field]).to eq(1.0)
+        expect(pick.call(field => 1.0000001)[field]).to be_nil
+        expect(pick.call(field => 10**20_000)[field]).to be_nil
+      end
+    end
+
+    it "turns negative zero into zero" do
+      out = normalize(entry.merge("diff_ratio" => -0.0, "threshold" => -0.0)).first
+      expect(out["diff_ratio"].to_s).to eq("0.0")
+      expect(out["threshold"].to_s).to eq("0.0")
+    end
+
     it "keeps zero values, integer ratios and a 300-character baseline" do
       out = normalize(entry.merge("diff_pixels" => 0, "diff_ratio" => 0, "baseline" => "b" * 300)).first
       expect(out).to include("diff_pixels" => 0, "diff_ratio" => 0, "baseline" => "b" * 300)

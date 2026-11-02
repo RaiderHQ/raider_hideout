@@ -657,18 +657,23 @@ components:
           diff_pixels:
             type: [integer, "null"]
             minimum: 0
+            maximum: 1000000000
           diff_ratio:
             type: [number, "null"]
             minimum: 0
+            maximum: 1
           threshold:
             type: [number, "null"]
             minimum: 0
+            maximum: 1
           max_diff_pixels:
             type: [integer, "null"]
             minimum: 0
+            maximum: 1000000000
           max_diff_ratio:
             type: [number, "null"]
             minimum: 0
+            maximum: 1
           expected_size:
             type: [array, "null"]
             minItems: 2
@@ -676,6 +681,7 @@ components:
             items:
               type: integer
               minimum: 0
+              maximum: 100000
           actual_size:
             type: [array, "null"]
             minItems: 2
@@ -683,6 +689,7 @@ components:
             items:
               type: integer
               minimum: 0
+              maximum: 100000
     Shard:
       type: object
       additionalProperties: false
