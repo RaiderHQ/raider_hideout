@@ -18,7 +18,7 @@ RSpec.describe "Trace viewer panels", type: :system do
   end
 
   def open_json(json)
-    open_trace(RawZip.build([{ name: "trace.json", data: JSON.generate(json), method: :stored }]))
+    open_trace(RawZip.build([ { name: "trace.json", data: JSON.generate(json), method: :stored } ]))
   end
 
   def select_step(text)
@@ -91,7 +91,7 @@ RSpec.describe "Trace viewer panels", type: :system do
 
   it "renders hostile error text as text" do
     data["steps"][0]["error"] = { "class" => "X", "message" => "<img src=x onerror=window.__pwned=3>" }
-    data["console"] = [{ "step_index" => 1, "level" => "error", "text" => "<img src=x onerror=window.__pwned=5>" }]
+    data["console"] = [ { "step_index" => 1, "level" => "error", "text" => "<img src=x onerror=window.__pwned=5>" } ]
     open_json(data)
     select_step("navigate")
     expect(page).to have_css("#trace-detail", text: "<img src=x onerror=window.__pwned=3>")
@@ -104,8 +104,8 @@ RSpec.describe "Trace viewer panels", type: :system do
 
   it "keeps other steps usable when a screenshot cannot be read" do
     data["steps"][0]["screenshot"] = "steps/0001.jpg"
-    bytes = RawZip.build([{ name: "trace.json", data: JSON.generate(data), method: :stored },
-                          { name: "steps/0001.jpg", data: "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024 }])
+    bytes = RawZip.build([ { name: "trace.json", data: JSON.generate(data), method: :stored },
+                          { name: "steps/0001.jpg", data: "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024 } ])
     open_trace(bytes)
     select_step("navigate")
     expect(page).to have_css("#trace-notices [data-testid=trace-error]", text: "This step's file couldn't be read: entry larger than declared")
@@ -115,7 +115,7 @@ RSpec.describe "Trace viewer panels", type: :system do
   end
 
   it "ignores null items in steps, network and console" do
-    open_json(data.merge("steps" => [nil, data["steps"][0]], "network" => [nil], "console" => [nil]))
+    open_json(data.merge("steps" => [ nil, data["steps"][0] ], "network" => [ nil ], "console" => [ nil ]))
     expect(page).to have_css("[data-testid=trace-step]", count: 1)
     click_on "Console"
     expect(page).to have_css("#trace-console", text: "Nothing during this step")

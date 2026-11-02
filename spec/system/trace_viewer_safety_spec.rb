@@ -38,13 +38,13 @@ RSpec.describe "Trace viewer zip safety", type: :system do
   end
 
   {
-    "a path traversal name" => ["entry name not allowed", ->(s) { [s.entry("trace.json", s.index_json), s.entry("../evil.html")] }],
-    "a disallowed extension" => ["entry name not allowed", ->(s) { [s.entry("trace.json", s.index_json), s.entry("steps/0001.exe")] }],
-    "a symlink entry" => ["symlink entry", ->(s) { [s.entry("trace.json", s.index_json), s.entry("steps/0001.html", "x", unix_mode: 0o120777)] }],
-    "too many entries" => ["too many entries", ->(s) { [s.entry("trace.json", s.index_json)] + (1..401).map { |i| s.entry(format("steps/%04d.html", i)) } }],
-    "the encryption flag" => ["encrypted entry", ->(s) { [s.entry("trace.json", s.index_json), s.entry("steps/0001.html", "x", flags: 1)] }],
-    "an unsupported method" => ["unsupported compression", ->(s) { [s.entry("trace.json", s.index_json), s.entry("steps/0001.html", "x", method: 12)] }],
-    "a lying bomb" => ["entry larger than declared", ->(s) { [s.entry("trace.json", "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024)] }]
+    "a path traversal name" => [ "entry name not allowed", ->(s) { [ s.entry("trace.json", s.index_json), s.entry("../evil.html") ] } ],
+    "a disallowed extension" => [ "entry name not allowed", ->(s) { [ s.entry("trace.json", s.index_json), s.entry("steps/0001.exe") ] } ],
+    "a symlink entry" => [ "symlink entry", ->(s) { [ s.entry("trace.json", s.index_json), s.entry("steps/0001.html", "x", unix_mode: 0o120777) ] } ],
+    "too many entries" => [ "too many entries", ->(s) { [ s.entry("trace.json", s.index_json) ] + (1..401).map { |i| s.entry(format("steps/%04d.html", i)) } } ],
+    "the encryption flag" => [ "encrypted entry", ->(s) { [ s.entry("trace.json", s.index_json), s.entry("steps/0001.html", "x", flags: 1) ] } ],
+    "an unsupported method" => [ "unsupported compression", ->(s) { [ s.entry("trace.json", s.index_json), s.entry("steps/0001.html", "x", method: 12) ] } ],
+    "a lying bomb" => [ "entry larger than declared", ->(s) { [ s.entry("trace.json", "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024) ] } ]
   }.each do |label, (reason, build)|
     it "refuses #{label}" do
       open_trace(RawZip.build(build.call(self)))
@@ -54,12 +54,12 @@ RSpec.describe "Trace viewer zip safety", type: :system do
   end
 
   it "says so when the file is not a Raider trace" do
-    open_trace(RawZip.build([entry("trace.json", '{"format":"other"}')]))
+    open_trace(RawZip.build([ entry("trace.json", '{"format":"other"}') ]))
     expect(page).to have_css("[data-testid=trace-error]", text: "This file is not a Raider trace.")
   end
 
   it "asks to update Hideout for a newer version" do
-    open_trace(RawZip.build([entry("trace.json", index_json(version: 2))]))
+    open_trace(RawZip.build([ entry("trace.json", index_json(version: 2)) ]))
     expect(page).to have_css("[data-testid=trace-error]", text: "This trace was made by a newer Raider. Update Hideout to open it.")
   end
 
@@ -75,8 +75,8 @@ RSpec.describe "Trace viewer zip safety", type: :system do
 
     def snapshot_zip(html)
       trace = JSON.generate(format: "raider-trace", version: 1,
-                            steps: [{ index: 1, action: "click", snapshot: "steps/0001.html" }])
-      RawZip.build([entry("trace.json", trace), entry("steps/0001.html", html)])
+                            steps: [ { index: 1, action: "click", snapshot: "steps/0001.html" } ])
+      RawZip.build([ entry("trace.json", trace), entry("steps/0001.html", html) ])
     end
 
     it "re-strips the snapshot and renders it in an empty sandbox" do
@@ -85,7 +85,7 @@ RSpec.describe "Trace viewer zip safety", type: :system do
       expect(frame[:sandbox]).to eq("")
       srcdoc = frame[:srcdoc]
       expect(srcdoc).to start_with("<!DOCTYPE html>")
-      ["<script", "onload", "<base", 'http-equiv="refresh"', "javascript:"].each do |bad|
+      [ "<script", "onload", "<base", 'http-equiv="refresh"', "javascript:" ].each do |bad|
         expect(srcdoc).not_to include(bad)
       end
       expect(page.evaluate_script("window.__pwned")).to be_nil
@@ -105,9 +105,9 @@ RSpec.describe "Trace viewer zip safety", type: :system do
 
     it "keeps the page usable when the snapshot entry cannot be read" do
       trace = JSON.generate(format: "raider-trace", version: 1,
-                            steps: [{ index: 1, action: "click", snapshot: "steps/0001.html" }])
-      open_trace(RawZip.build([entry("trace.json", trace),
-                               entry("steps/0001.html", "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024)]))
+                            steps: [ { index: 1, action: "click", snapshot: "steps/0001.html" } ])
+      open_trace(RawZip.build([ entry("trace.json", trace),
+                               entry("steps/0001.html", "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024) ]))
       expect(page).to have_css("[data-testid=trace-error]", text: "This step's file couldn't be read: entry larger than declared")
       expect(page).not_to have_text("This trace can't be opened")
       expect(page).to have_css("#trace-timeline [data-testid=trace-step]", count: 1)
