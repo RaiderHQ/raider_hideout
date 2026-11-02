@@ -87,6 +87,92 @@ RSpec.describe Build do
     end
   end
 
+  describe "re-run attempts" do
+    let(:case_x) { create(:test_case, project: project, full_name: "X") }
+    let(:case_y) { create(:test_case, project: project, full_name: "Y") }
+
+    def attempt_run(attempt, label, results, **attrs)
+      counts = results.values.tally
+      run = add_run({ attempt: attempt, shard_label: label, total_count: results.size,
+                      passed_count: counts.fetch("passed", 0), failed_count: counts.fetch("failed", 0),
+                      status: counts.key?("failed") ? "failed" : "passed" }.merge(attrs))
+      results.each { |test_case, status| create(:test_result, run: run, test_case: test_case, status: status) }
+      run
+    end
+
+    it "supersedes an earlier attempt's result for the same case and slot" do
+      first = attempt_run(1, "test#2", { case_x => "failed" })
+      attempt_run(2, "test#2", { case_x => "passed" })
+      build_record.recompute!
+      expect(first.test_results.first).to be_superseded
+      expect(build_record).to have_attributes(total_count: 1, failed_count: 0, passed_count: 1, status: "passed")
+    end
+
+    it "keeps other matrix legs effective" do
+      attempt_run(1, "test#1", { case_x => "passed" })
+      attempt_run(1, "test#2", { case_x => "failed" })
+      attempt_run(2, "test#2", { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record).to have_attributes(total_count: 2, failed_count: 0, passed_count: 2)
+      expect(TestResult.joins(:run).find_by(runs: { shard_label: "test#1" })).not_to be_superseded
+    end
+
+    it "treats unlabeled runs as one slot" do
+      attempt_run(1, nil, { case_x => "failed" })
+      attempt_run(2, nil, { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record).to have_attributes(total_count: 1, failed_count: 0, status: "passed")
+    end
+
+    it "keeps a case absent from the later attempt" do
+      attempt_run(1, "test#1", { case_x => "failed", case_y => "failed" })
+      attempt_run(2, "test#1", { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record).to have_attributes(total_count: 2, failed_count: 1, passed_count: 1, status: "failed")
+    end
+
+    it "gives the same counts when attempt 2 is ingested first" do
+      payload = lambda do |attempt, status|
+        build_payload(results: [ build_result("status" => status) ]).tap do |d|
+          d["run"]["ci"] = { "provider" => "github_actions", "build_id" => "9", "repository" => "acme/shop",
+                             "attempt" => attempt.to_s, "build_key" => "github_actions:acme/shop:9:#{attempt}" }
+          d["run"]["shard"] = { "index" => 1, "total" => 1, "label" => "test#1" }
+        end
+      end
+      summaries = [ [ [ 1, "failed" ], [ 2, "passed" ] ], [ [ 2, "passed" ], [ 1, "failed" ] ] ].map do |order|
+        owner = create(:project)
+        order.each { |attempt, status| Ingest.call(project: owner, payload: payload.call(attempt, status).to_json, files: {}) }
+        build = owner.builds.sole
+        [ build.total_count, build.passed_count, build.failed_count, build.status ]
+      end
+      expect(summaries.first).to eq([ 1, 1, 0, "passed" ])
+      expect(summaries.last).to eq(summaries.first)
+    end
+
+    it "never lets attempt 2 runs make a complete build incomplete" do
+      2.times { |i| attempt_run(1, "test##{i + 1}", { case_x => "passed" }, shard_index: i + 1, shard_total: 2) }
+      attempt_run(2, "test#2", { case_x => "passed" }, shard_index: 2, shard_total: 2)
+      build_record.recompute!
+      expect(build_record).to be_complete
+      expect(build_record.status).not_to eq("incomplete")
+      expect(build_record).to have_attributes(expected_shards: 2, shard_progress: "2/2")
+    end
+
+    it "falls back to the lowest attempt present when attempt 1 never uploaded" do
+      attempt_run(2, nil, { case_x => "passed" }, shard_index: 1, shard_total: 1)
+      build_record.recompute!
+      expect(build_record.first_attempt_runs.count).to eq(1)
+      expect(build_record).to be_complete
+    end
+
+    it "lists fixed_by_rerun" do
+      attempt_run(1, "test#2", { case_x => "failed", case_y => "passed" })
+      second = attempt_run(2, "test#2", { case_x => "passed" })
+      build_record.recompute!
+      expect(build_record.fixed_by_rerun).to eq([ [ second.test_results.first, 2 ] ])
+    end
+  end
+
   it "computes pass rate from passed, failed and quarantined only" do
     expect(build(:build, passed_count: 3, failed_count: 1, skipped_count: 9).pass_rate).to eq(75)
     expect(build(:build, passed_count: 1, failed_count: 0, quarantined_count: 3).pass_rate).to eq(25)

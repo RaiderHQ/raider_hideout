@@ -145,7 +145,7 @@ class BuildSummary
   def waiting_line
     return unless state == "incomplete" && @build.expected_shards
 
-    missing = [ @build.expected_shards - @build.runs.size, 1 ].max
+    missing = [ @build.expected_shards - @build.first_attempt_runs.size, 1 ].max
     "Waiting for #{missing} more #{'shard'.pluralize(missing)}"
   end
 
@@ -154,11 +154,11 @@ class BuildSummary
   end
 
   def failed_scope
-    TestResult.where(run_id: @build.runs.select(:id), status: "failed")
+    @build.effective_results.where(status: "failed")
   end
 
   def failing_scope
-    TestResult.where(run_id: @build.runs.select(:id), status: TestResult::FAILING_STATUSES)
+    @build.effective_results.where(status: TestResult::FAILING_STATUSES)
   end
 
   def failed_total

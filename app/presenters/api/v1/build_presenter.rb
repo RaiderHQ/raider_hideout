@@ -61,7 +61,7 @@ module Api
 
       # Failed first, then quarantined; by file, then name.
       def failures
-        TestResult.where(run_id: @build.runs.select(:id), status: TestResult::FAILING_STATUSES)
+        @build.effective_results.where(status: TestResult::FAILING_STATUSES)
                   .joins(:test_case).preload(:test_case)
                   .order(Arel.sql("CASE test_results.status WHEN 'failed' THEN 0 ELSE 1 END"),
                          "test_cases.file_path", "test_cases.full_name", "test_results.id")

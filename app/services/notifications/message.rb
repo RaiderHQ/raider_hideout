@@ -55,7 +55,7 @@ module Notifications
     end
 
     def self.failures_for(build)
-      scope = TestResult.where(run_id: build.runs.select(:id), status: "failed")
+      scope = build.effective_results.where(status: "failed")
       total = scope.count
       lines = scope.includes(:test_case).order(:id).limit(MAX_LISTED).map do |result|
         "#{result.test_case.full_name} (#{result.test_case.file_path})".truncate(ITEM_LENGTH)

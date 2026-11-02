@@ -14,7 +14,7 @@ module Api
         render json: {
           state: report.state,
           build_state: build.status,
-          shards: { received: build.runs.count, expected: build.expected_shards },
+          shards: { received: build.first_attempt_runs.count, expected: build.expected_shards },
           rules: report.rules.map { |rule| { rule: rule.rule, outcome: rule.outcome, detail: rule.detail } },
           url: project_build_url(build.project, build)
         }
