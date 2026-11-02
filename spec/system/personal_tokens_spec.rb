@@ -13,7 +13,8 @@ RSpec.describe "Personal tokens", type: :system do
 
   it "creates a token, shows it once with the snippets, and revokes it" do
     sign_in_as(user)
-    within("nav") { click_on "Tokens" }
+    find("#account-menu summary").click
+    within("#account-menu") { click_on "Tokens" }
 
     fill_in "Name", with: "Claude on my laptop"
     select "Never", from: "Expires"
