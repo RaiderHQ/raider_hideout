@@ -3,13 +3,13 @@
 //  - only top-level navigations are intercepted, and only to fall back to
 //    /offline when the network fails. Authenticated responses are never stored;
 //  - a notification click only opens same-origin URLs.
-const OFFLINE_CACHE = "hideout-offline-v1" // keep in step with the cache name in install
+const OFFLINE_CACHE = "hideout-offline-v1"
 const OFFLINE_URL = "/offline"
 const FALLBACK_PATH = "/projects"
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open("hideout-offline-v1").then((cache) => cache.add("/offline")).then(() => self.skipWaiting())
+    caches.open(OFFLINE_CACHE).then((cache) => cache.add(OFFLINE_URL)).then(() => self.skipWaiting())
   )
 })
 
@@ -28,7 +28,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request
   if (request.mode !== "navigate") return
 
-  event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL)))
+  event.respondWith(fetch(request).catch(() => caches.match(OFFLINE_URL).then((cached) => cached || Response.error())))
 })
 
 self.addEventListener("push", (event) => {
@@ -74,8 +74,13 @@ self.addEventListener("notificationclick", (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if (new URL(client.url).pathname === url.pathname && "focus" in client) return client.focus()
+      const exact = clients.find((client) => client.url === url.href)
+      if (exact) return exact.focus()
+
+      // Same page, different query (e.g. ?result=<id>): navigate so the page reacts to it.
+      const samePath = clients.find((client) => new URL(client.url).pathname === url.pathname)
+      if (samePath && "navigate" in samePath) {
+        return samePath.navigate(url.href).then((navigated) => navigated && navigated.focus())
       }
       return self.clients.openWindow(url.href)
     })

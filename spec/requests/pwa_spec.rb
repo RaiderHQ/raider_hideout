@@ -47,7 +47,9 @@ RSpec.describe "Installable web app", type: :request do
       let(:source) { get(pwa_service_worker_path) && response.body }
 
       it "caches only the offline page and intercepts navigations only" do
-        expect(source).to include('caches.open("hideout-offline-v1")', '.add("/offline")')
+        expect(source).to include('const OFFLINE_CACHE = "hideout-offline-v1"', 'const OFFLINE_URL = "/offline"')
+        expect(source).to include("caches.open(OFFLINE_CACHE).then((cache) => cache.add(OFFLINE_URL))")
+        expect(source).to include("cached || Response.error()")
         expect(source).to include('request.mode !== "navigate"').or include('request.mode === "navigate"')
         expect(source.scan("respondWith").size).to eq(1)
         expect(source).not_to match(/cache\.put|addAll/)
@@ -60,9 +62,10 @@ RSpec.describe "Installable web app", type: :request do
       end
 
       it "always shows a notification for a push, even without a usable payload" do
-        expect(source).to include("showNotification")
-        expect(source).to include("catch")
-        expect(source).to include("Raider Hideout")
+        expect(source).to include("self.registration.showNotification(title, {")
+        expect(source).to include("} catch (_error) {\n    payload = {}")
+        expect(source).to include('payload.title : "Raider Hideout"')
+        expect(source).to include("const path = typeof payload.path === \"string\" ? payload.path : FALLBACK_PATH")
       end
     end
   end
@@ -75,6 +78,20 @@ RSpec.describe "Installable web app", type: :request do
       expect(response.body).to include("You're offline", "Raider Hideout needs a connection to show results.")
       expect(response.body).not_to include("<nav")
     end
+  end
+
+  it "serves the offline page before any user exists instead of redirecting to setup" do
+    User.delete_all
+    Rails.configuration.x.first_run_redirect = true
+    FirstRun.reset!
+
+    get offline_path
+
+    expect(response).to have_http_status(:ok)
+    expect(response.body).to include("Raider Hideout needs a connection to show results.")
+  ensure
+    Rails.configuration.x.first_run_redirect = false
+    FirstRun.reset!
   end
 
   it "links the manifest and touch icon from the layout" do
