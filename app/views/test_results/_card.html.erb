@@ -20,6 +20,7 @@
       <p><%= link_to (traces.size > 1 ? "Open trace (#{index + 1} of #{traces.size})" : "Open trace"), test_result_trace_path(result, trace), data: { turbo: false, turbo_prefetch: false }, class: "inline-flex items-center min-h-11 md:min-h-0 text-xs text-ruby" %></p>
     <% end %>
     <% if failing %>
+      <% attachments = attachments.reject { |a| comparison_attachment?(result, a) } %>
       <% images = attachments.select { |a| a.content_type.to_s.start_with?("image/") } %>
       <% shot = images.find { |a| result.attachment_name(a) == "screenshot" } || images.first %>
       <% videos = attachments.select { |a| a.content_type.to_s.start_with?("video/") } %>
@@ -29,6 +30,7 @@
       <% else %>
         <%= render "test_results/failure", result: result, shot: shot, videos: videos %>
       <% end %>
+      <%= render "test_results/comparisons", result: result %>
       <% if others.any? %>
         <div class="flex flex-wrap gap-3">
           <% others.each do |attachment| %>
@@ -36,7 +38,7 @@
           <% end %>
         </div>
       <% end %>
-    <% elsif attachments.any? %>
+    <% elsif (attachments = attachments.reject { |a| comparison_attachment?(result, a) }).any? %>
       <div class="flex flex-wrap gap-3">
         <% attachments.each do |attachment| %>
           <%= render "test_results/attachment", result: result, attachment: attachment %>

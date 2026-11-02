@@ -37,6 +37,10 @@ Warnings:
 * Backups share the database's disk until you set `BACKUP_BUCKET`; then each one is also copied offsite (see [configuration](docs/install/configuration.md#backups)).
 * A restore needs the same secrets: keep `storage/hideout-secrets.yml` (or your `SECRET_KEY_BASE` and `ACTIVE_RECORD_ENCRYPTION_*` values) with your backups.
 
+## Screenshot comparison
+
+A failed or quarantined test card shows a "Screenshot comparison" section when the reporter (raider_reporter 0.14 and later, in ruby_raider 3.15 projects) sent comparison results: Expected, Actual and Diff tabs, the pixel counts and allowance, and any size change. The trace viewer names the step `Screenshot "home" did not match`. Comparison images follow `RETENTION_ATTACHMENT_DAYS` and their records follow `RETENTION_RESULT_DAYS`.
+
 ## Explore
 
 `/projects/:id/explore` searches a project's tests (one row per test) or results (one row per result) on one branch over a time range (default 7 days, at most 90). The query box and the fields form edit the same filter:

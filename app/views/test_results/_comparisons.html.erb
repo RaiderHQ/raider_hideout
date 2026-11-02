@@ -1,0 +1,48 @@
+<% blocks = comparison_blocks(result) %>
+<% if blocks.any? %>
+  <section data-testid="screenshot-comparison" class="space-y-3">
+    <h3 class="text-sm font-medium">Screenshot comparison</h3>
+    <% passed = blocks.count { |b| b.status == "passed" } %>
+    <% blocks.each_with_index do |block, index| %>
+      <% next if block.status == "passed" %>
+      <% if %w[created updated].include?(block.status) %>
+        <% actual = block.images["actual"] %>
+        <p data-testid="<%= dom_id(result) %>-comparison-<%= index %>" class="text-xs text-neutral-dk">
+          Baseline <%= block.status %> · <span class="font-mono break-all"><%= block.name %></span>
+          <% if actual %>· <%= link_to "Actual", attachment_path(actual), data: { action: "click->lightbox#open" }, class: "inline-flex items-center min-h-11 md:min-h-0 text-ruby" %><% end %>
+        </p>
+      <% else %>
+        <% default = comparison_default_kind(block) %>
+        <% base = "#{dom_id(result)}-comparison-#{index}" %>
+        <div data-testid="<%= dom_id(result) %>-comparison-<%= index %>" data-controller="comparison-tabs" class="space-y-2">
+          <p class="text-sm font-mono break-all"><%= block.name %></p>
+          <% if block.entry && block.entry["baseline"] %>
+            <p class="text-xs text-neutral-dk">Baseline: <span class="font-mono break-all"><%= block.entry["baseline"] %></span></p>
+          <% end %>
+          <% if block.entry %>
+            <% [ comparison_numbers(block.entry), comparison_allowance(block.entry), comparison_size_change(block.entry) ].compact.each do |line| %>
+              <p class="text-xs text-neutral-dk"><%= line %></p>
+            <% end %>
+          <% end %>
+          <% if block.images.any? %>
+            <div role="tablist" aria-label="Screenshots for <%= block.name %>" class="flex gap-2">
+              <% block.images.each_key do |kind| %>
+                <button type="button" role="tab" id="<%= base %>-tab-<%= kind %>" aria-controls="<%= base %>-panel-<%= kind %>" aria-selected="<%= kind == default %>" tabindex="<%= kind == default ? 0 : -1 %>" data-kind="<%= kind %>"
+                        data-comparison-tabs-target="tab" data-action="click->comparison-tabs#select keydown->comparison-tabs#key"
+                        class="min-h-11 md:min-h-0 px-3 text-xs rounded-sm border border-neutral-bdr aria-selected:bg-ruby-sub aria-selected:text-ruby"><%= kind.capitalize %></button>
+              <% end %>
+            </div>
+            <% block.images.each do |kind, attachment| %>
+              <div id="<%= base %>-panel-<%= kind %>" role="tabpanel" aria-labelledby="<%= base %>-tab-<%= kind %>" data-kind="<%= kind %>" data-comparison-tabs-target="panel" <%= "hidden" unless kind == default %>>
+                <img src="<%= attachment_path(attachment) %>" alt="<%= kind.capitalize %> screenshot for <%= block.name %>" loading="lazy"
+                     data-action="click->lightbox#open"
+                     class="max-w-full h-auto rounded-sm border border-neutral-bdr cursor-zoom-in">
+              </div>
+            <% end %>
+          <% end %>
+        </div>
+      <% end %>
+    <% end %>
+    <% if passed > 0 %><p class="text-xs text-neutral-mid"><%= passed %> matched</p><% end %>
+  </section>
+<% end %>

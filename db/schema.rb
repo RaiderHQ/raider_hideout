@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_170000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_180000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -406,6 +406,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_170000) do
     t.json "dropped_attachments", default: [], null: false
     t.json "steps"
     t.boolean "superseded", default: false, null: false
+    t.json "comparisons"
     t.index ["error_group_id", "created_at"], name: "index_test_results_on_error_group_id_and_created_at"
     t.index ["run_id", "status"], name: "index_test_results_on_run_id_and_status"
     t.index ["run_id", "test_case_id"], name: "index_test_results_on_run_id_and_test_case_id"

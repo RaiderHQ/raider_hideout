@@ -70,8 +70,8 @@ Without `SMTP_ADDRESS`, invitations show a link to copy, the forgot-password lin
 
 | Variable | Default | What it does |
 |---|---|---|
-| `RETENTION_ATTACHMENT_DAYS` | `30` | Attachments older than this are deleted nightly. |
-| `RETENTION_RESULT_DAYS` | `90` | Test results older than this are deleted; build totals stay. |
+| `RETENTION_ATTACHMENT_DAYS` | `30` | Attachments older than this are deleted nightly, including screenshot comparison images. |
+| `RETENTION_RESULT_DAYS` | `90` | Test results older than this are deleted; build totals stay. Screenshot comparison records go with their result. |
 
 ## Error tracking
 
