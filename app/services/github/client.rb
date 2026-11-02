@@ -21,15 +21,27 @@ module Github
 
     # GET /repos/{owner}/{repo}: needs only Metadata: read.
     def repository(owner, repo)
-      raise Error, "invalid token" unless CiAccess::TOKEN_FORMAT.match?(@token.to_s)
-      raise Error, "invalid repository" unless Repository.valid_part?(owner) && Repository.valid_part?(repo)
-
+      check_parts!(owner, repo)
       request(Net::HTTP::Get, "/repos/#{owner}/#{repo}")
+    end
+
+    # POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs: failed jobs only, empty body.
+    def rerun_failed_jobs(owner, repo, run_id)
+      check_parts!(owner, repo)
+      raise Error, "invalid run" unless Repository::RUN_ID.match?(run_id.to_s)
+
+      request(Net::HTTP::Post, "/repos/#{owner}/#{repo}/actions/runs/#{run_id}/rerun-failed-jobs")
     end
 
     private
 
+    def check_parts!(owner, repo)
+      raise Error, "invalid repository" unless Repository.valid_part?(owner) && Repository.valid_part?(repo)
+    end
+
     def request(verb, path)
+      raise Error, "invalid token" unless CiAccess::TOKEN_FORMAT.match?(@token.to_s)
+
       http = Net::HTTP.new(HOST, 443)
       http.use_ssl = true
       http.open_timeout = TIMEOUT

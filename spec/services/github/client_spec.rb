@@ -82,4 +82,23 @@ RSpec.describe Github::Client do
   it "does not expose the token through inspect" do
     expect(client.inspect).not_to include(token)
   end
+
+  describe "#rerun_failed_jobs" do
+    let(:rerun_url) { "https://api.github.com/repos/octo/hello/actions/runs/123/rerun-failed-jobs" }
+
+    it "POSTs the exact URL with an empty body and returns the status" do
+      stub = stub_request(:post, rerun_url).with(headers: headers, body: "").to_return(status: 201, body: "")
+      expect(client.rerun_failed_jobs("octo", "hello", "123")).to eq(Github::Response.new(status: 201, message: nil))
+      expect(stub).to have_been_requested
+    end
+
+    it "refuses a bad token, repository or run id without a request" do
+      stub = stub_request(:any, /api\.github\.com/)
+      expect { described_class.new("nope").rerun_failed_jobs("octo", "hello", "123") }.to raise_error(Github::Client::Error, "invalid token")
+      [ [ "..", "r", "1" ], [ "o", "r/x", "1" ], [ "o", "r", "1/../2" ], [ "o", "r", "1" * 21 ], [ "o", "r", "%2F" ], [ "o", "r", "" ] ].each do |o, r, id|
+        expect { client.rerun_failed_jobs(o, r, id) }.to raise_error(Github::Client::Error)
+      end
+      expect(stub).not_to have_been_requested
+    end
+  end
 end

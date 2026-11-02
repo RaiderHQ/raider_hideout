@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_190000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_190100) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -48,6 +48,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_190000) do
     t.datetime "updated_at", null: false
     t.index ["project_id"], name: "index_api_tokens_on_project_id"
     t.index ["token_digest"], name: "index_api_tokens_on_token_digest", unique: true
+  end
+
+  create_table "build_reruns", force: :cascade do |t|
+    t.integer "build_id", null: false
+    t.integer "user_id"
+    t.integer "attempt_before", null: false
+    t.string "status", null: false
+    t.integer "http_status"
+    t.string "message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["build_id", "created_at"], name: "index_build_reruns_on_build_id_and_created_at"
+    t.index ["user_id"], name: "index_build_reruns_on_user_id"
   end
 
   create_table "builds", force: :cascade do |t|
@@ -448,6 +461,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_190000) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "api_tokens", "projects"
+  add_foreign_key "build_reruns", "builds"
+  add_foreign_key "build_reruns", "users", on_delete: :nullify
   add_foreign_key "builds", "builds", column: "baseline_build_id", on_delete: :nullify
   add_foreign_key "builds", "projects"
   add_foreign_key "ci_accesses", "projects", on_delete: :cascade
