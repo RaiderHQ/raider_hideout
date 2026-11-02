@@ -69,4 +69,60 @@ RSpec.describe "Trace viewer zip safety", type: :system do
     open_trace(RawZip.build([entry("trace.json", index_json(version: 2))]))
     expect(page).to have_css("[data-testid=trace-error]", text: "This trace was made by a newer Raider. Update Hideout to open it.")
   end
+
+  describe "snapshot sandbox" do
+    let(:hostile_html) do
+      <<~HTML
+        <html><head><base href="https://evil.test/"><meta http-equiv="refresh" content="0;url=https://evil.test">
+        <script>window.top.__pwned=1</script></head>
+        <body onload="window.top.__pwned=2"><a href="javascript:alert(1)">x</a>
+        <style>p{color:rgb(1,2,3)}</style><p>hi</p></body></html>
+      HTML
+    end
+
+    def snapshot_zip(html)
+      trace = JSON.generate(format: "raider-trace", version: 1,
+                            steps: [{ index: 1, action: "click", snapshot: "steps/0001.html" }])
+      RawZip.build([entry("trace.json", trace), entry("steps/0001.html", html)])
+    end
+
+    it "re-strips the snapshot and renders it in an empty sandbox" do
+      open_trace(snapshot_zip(hostile_html))
+      frame = find("[data-testid=trace-snapshot]")
+      expect(frame[:sandbox]).to eq("")
+      srcdoc = frame[:srcdoc]
+      expect(srcdoc).to start_with("<!DOCTYPE html>")
+      ["<script", "onload", "<base", 'http-equiv="refresh"', "javascript:"].each do |bad|
+        expect(srcdoc).not_to include(bad)
+      end
+      expect(page.evaluate_script("window.__pwned")).to be_nil
+      within_frame(frame) do
+        expect(page.evaluate_script("getComputedStyle(document.querySelector('p')).color")).to eq("rgb(1, 2, 3)")
+      end
+    end
+
+    it "keeps the page usable when the snapshot entry cannot be read" do
+      trace = JSON.generate(format: "raider-trace", version: 1,
+                            steps: [{ index: 1, action: "click", snapshot: "steps/0001.html" }])
+      open_trace(RawZip.build([entry("trace.json", trace),
+                               entry("steps/0001.html", "\0" * (2 * 1024 * 1024), method: :deflate, declared_size: 1024)]))
+      expect(page).to have_css("[data-testid=trace-error]", text: "This trace can't be opened")
+      expect(page).to have_css("#trace-timeline [data-testid=trace-step]", count: 1)
+    end
+
+    it "applies snapshot CSS after clicking Open trace from the build page" do
+      run = result.run
+      result.update!(status: "failed")
+      attach_trace(result, io: StringIO.new(snapshot_zip(hostile_html)))
+      sign_in_as(member)
+      visit project_build_path(project, run.build)
+      card = find("details", text: result.test_case.full_name)
+      card.find("summary").click unless card[:open]
+      click_on "Open trace"
+      frame = find("[data-testid=trace-snapshot]")
+      within_frame(frame) do
+        expect(page.evaluate_script("getComputedStyle(document.querySelector('p')).color")).to eq("rgb(1, 2, 3)")
+      end
+    end
+  end
 end

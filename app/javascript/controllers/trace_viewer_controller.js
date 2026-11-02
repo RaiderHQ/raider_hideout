@@ -1,4 +1,5 @@
 import { Controller } from "@hotwired/stimulus"
+import { renderSnapshot } from "trace/snapshot"
 import { MAX_ZIP_BYTES, TraceError, readZip, loadTrace } from "trace/zip_reader"
 
 // Fetches the trace zip, reads it in the browser and hands it to the renderer.
@@ -9,7 +10,7 @@ export default class extends Controller {
     this.abort = new AbortController()
     try {
       const trace = await loadTrace(await readZip(await this.download()))
-      this.render(trace)
+      await this.render(trace)
     } catch (error) {
       if (this.abort.signal.aborted) return
       this.showError(error instanceof TraceError ? error.message : "This trace can't be opened: download failed")
@@ -41,13 +42,27 @@ export default class extends Controller {
   }
 
   // Placeholder timeline; the real renderer replaces this.
-  render({ index }) {
+  async render({ index, entry }) {
     const timeline = this.element.querySelector("#trace-timeline")
     for (const step of index.steps || []) {
       const item = document.createElement("li")
       item.dataset.testid = "trace-step"
       item.textContent = String(step.action ?? "")
       timeline.append(item)
+    }
+    await this.showSnapshot(entry, (index.steps || [])[0])
+  }
+
+  // Minimal selection until the detail panel lands: the first step.
+  async showSnapshot(entry, step) {
+    const name = step?.snapshot
+    const file = typeof name === "string" ? entry(name) : null
+    if (!file) return
+    try {
+      renderSnapshot(this.element.querySelector("#trace-detail"), await file.read(), name)
+    } catch (error) {
+      if (this.abort.signal.aborted) return
+      this.showError(error instanceof TraceError ? error.message : "This trace can't be opened: snapshot unreadable")
     }
   }
 
