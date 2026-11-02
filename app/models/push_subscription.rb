@@ -6,6 +6,7 @@ class PushSubscription < ApplicationRecord
   EXTRA_HOSTS_ENV = "HIDEOUT_PUSH_HOSTS".freeze
   MAX_ENDPOINT_LENGTH = 2000
   MAX_LABEL_LENGTH = 60
+  MAX_PER_USER = 10
   BASE64URL = /\A[A-Za-z0-9_-]+={0,2}\z/
 
   belongs_to :user
@@ -14,6 +15,7 @@ class PushSubscription < ApplicationRecord
   validates :endpoint, uniqueness: true
   validate :endpoint_host_allowed
   validate :keys_well_formed
+  validate :within_device_cap, on: :create
   validates :device_label, length: { maximum: MAX_LABEL_LENGTH }
 
   class << self
@@ -78,8 +80,22 @@ class PushSubscription < ApplicationRecord
   end
 
   def keys_well_formed
-    errors.add(:p256dh, "is not a valid public key") unless decoded_length(p256dh) == 65
+    errors.add(:p256dh, "is not a valid public key") unless decoded_length(p256dh) == 65 && on_curve?(p256dh)
     errors.add(:auth, "is not a valid auth secret") unless decoded_length(auth) == 16
+  end
+
+  def within_device_cap
+    return unless user_id && PushSubscription.where(user_id: user_id).count >= MAX_PER_USER
+
+    errors.add(:base, "You can turn on notifications on at most #{MAX_PER_USER} devices. Remove one first.")
+  end
+
+  def on_curve?(value)
+    group = OpenSSL::PKey::EC::Group.new("prime256v1")
+    OpenSSL::PKey::EC::Point.new(group, OpenSSL::BN.new(Base64.urlsafe_decode64(value), 2))
+    true
+  rescue OpenSSL::PKey::EC::Point::Error, OpenSSL::BNError, ArgumentError
+    false
   end
 
   def decoded_length(value)

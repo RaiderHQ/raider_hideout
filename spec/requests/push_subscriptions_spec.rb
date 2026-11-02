@@ -76,6 +76,19 @@ RSpec.describe "Push subscriptions", type: :request do
       expect(user.push_subscriptions.sole.auth).to eq(new_auth)
     end
 
+    it "answers 422 for an 11th device but still upserts an existing one" do
+      PushSubscription::MAX_PER_USER.times { |i| user.push_subscriptions.create!(endpoint: fcm_endpoint("d#{i}"), p256dh: valid_p256dh, auth: valid_auth) }
+      post_json(payload.merge(endpoint: fcm_endpoint("eleventh")))
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.parsed_body["errors"]).to eq([ "You can turn on notifications on at most 10 devices. Remove one first." ])
+      expect(user.push_subscriptions.count).to eq(10)
+
+      new_auth = b64url(Array.new(16, 3))
+      post_json(payload.merge(endpoint: fcm_endpoint("d0"), keys: { p256dh: valid_p256dh, auth: new_auth }))
+      expect(response).to have_http_status(:created)
+      expect(user.push_subscriptions.find_by(endpoint: fcm_endpoint("d0")).auth).to eq(new_auth)
+    end
+
     it "gives 422 and leaves the row alone when the endpoint belongs to another user" do
       other = create(:user)
       theirs = other.push_subscriptions.create!(endpoint: fcm_endpoint, p256dh: valid_p256dh, auth: valid_auth, device_label: "Android")

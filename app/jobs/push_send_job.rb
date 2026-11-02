@@ -45,10 +45,10 @@ class PushSendJob < ApplicationJob
   rescue WebPush::PayloadTooLarge
     Rails.logger.error("[push] subscription #{subscription.id} delivery #{delivery.id}: payload too large")
   rescue WebPush::TooManyRequests, WebPush::PushServiceError
-    raise TemporaryFailure
+    raise TemporaryFailure, "temporary push failure", cause: nil
   rescue WebPush::ResponseError => e
     Rails.logger.error("[push] subscription #{subscription.id} delivery #{delivery.id}: unexpected response #{e.response.code}")
   rescue *NETWORK_ERRORS
-    raise TemporaryFailure
+    raise TemporaryFailure, "temporary push failure", cause: nil
   end
 end

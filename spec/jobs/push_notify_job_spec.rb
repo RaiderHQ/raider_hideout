@@ -158,6 +158,20 @@ RSpec.describe PushNotifyJob do
     end
   end
 
+  it "raises TemporaryFailure with no cause, so no endpoint host or response body leaks into the retry" do
+    _, subscription = subscribe_member(project)
+    delivery = instance_double(PushDelivery, id: 1)
+    job = PushSendJob.new
+
+    stub_push(subscription.endpoint, status: 503, body: "secret-body")
+    expect { job.send(:deliver, subscription, delivery, "{}") }
+      .to raise_error(PushSendJob::TemporaryFailure) { |error| expect(error.cause).to be_nil }
+
+    stub_request(:post, subscription.endpoint).to_timeout
+    expect { job.send(:deliver, subscription, delivery, "{}") }
+      .to raise_error(PushSendJob::TemporaryFailure) { |error| expect(error.cause).to be_nil }
+  end
+
   it "gives up after five executions" do
     _, subscription = subscribe_member(project)
     stub_push(subscription.endpoint, status: 503)

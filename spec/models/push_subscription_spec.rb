@@ -86,6 +86,19 @@ RSpec.describe PushSubscription, type: :model do
       expect(build_subscription(auth: nil)).not_to be_valid
     end
 
+    it "rejects a 65-byte key that is not a point on prime256v1" do
+      expect(build_subscription(p256dh: b64url([ 4 ] + Array.new(64) { |i| i + 1 }))).not_to be_valid
+    end
+
+    it "caps a user at #{PushSubscription::MAX_PER_USER} devices but still lets an existing one save" do
+      PushSubscription::MAX_PER_USER.times { |i| build_subscription(endpoint: fcm_endpoint("d#{i}")).save! }
+      over = build_subscription(endpoint: fcm_endpoint("extra"))
+      expect(over).not_to be_valid
+      expect(over.errors.full_messages).to eq([ "You can turn on notifications on at most 10 devices. Remove one first." ])
+      expect(described_class.find_by!(endpoint: fcm_endpoint("d0"))).to be_valid
+      expect(build_subscription(user: create(:user))).to be_valid
+    end
+
     it "limits the device label to 60 characters" do
       expect(build_subscription(device_label: "x" * 61)).not_to be_valid
     end

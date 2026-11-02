@@ -4,10 +4,14 @@
 
 <%= panel(extra: "mb-6") do %>
   <h2 class="text-lg font-semibold mb-4">This device</h2>
+  <% if @vapid_error %>
+    <p role="alert" class="text-sm text-status-err"><%= @vapid_error %></p>
+  <% else %>
   <div data-controller="push" data-push-public-key-value="<%= @public_key %>" data-push-url-value="<%= push_subscriptions_path %>">
     <button type="button" data-action="push#subscribe" class="<%= button_classes(:primary, extra: "w-full md:w-auto") %>">Turn on notifications</button>
     <p role="alert" data-push-target="message" class="mt-3 text-sm text-status-err"></p>
   </div>
+  <% end %>
 <% end %>
 
 <%= panel(extra: "mb-6") do %>

@@ -15,6 +15,16 @@ RSpec.describe "Phone notifications", type: :request do
   context "signed in" do
     before { sign_in(user) }
 
+    it "shows the configuration error instead of the button when only one VAPID variable is set" do
+      ENV["HIDEOUT_VAPID_PUBLIC_KEY"] = "abc"
+      get phone_notifications_path
+      expect(response).to have_http_status(:ok)
+      expect(response.body).to include("HIDEOUT_VAPID_PRIVATE_KEY is not set")
+      expect(response.body).not_to include("Turn on notifications")
+    ensure
+      ENV.delete("HIDEOUT_VAPID_PUBLIC_KEY")
+    end
+
     it "shows the note, the button, this user's devices, three switches and the visible projects" do
       user.push_subscriptions.create!(endpoint: fcm_endpoint, p256dh: valid_p256dh, auth: valid_auth, device_label: "iPhone")
       create(:user).push_subscriptions.create!(endpoint: fcm_endpoint("zzz"), p256dh: valid_p256dh, auth: valid_auth, device_label: "OtherPersonPhone")

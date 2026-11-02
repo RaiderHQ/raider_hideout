@@ -24,7 +24,7 @@ RSpec.describe "hideout:vapid:rotate" do
   it "deletes every subscription and prints how many devices must subscribe again" do
     2.times do |i|
       create(:user).push_subscriptions.create!(endpoint: "https://fcm.googleapis.com/fcm/send/#{i}",
-        p256dh: Base64.urlsafe_encode64("\x04".b + "a" * 64, padding: false), auth: Base64.urlsafe_encode64("b" * 16, padding: false))
+        p256dh: PushHelpers::REAL_P256DH, auth: Base64.urlsafe_encode64("b" * 16, padding: false))
     end
     task = Rake::Task["hideout:vapid:rotate"]
     task.reenable

@@ -7,6 +7,8 @@ class PhoneNotificationsController < ApplicationController
     @projects = Current.user.projects.order(:name)
     @muted_ids = Current.user.push_muted_projects.pluck(:project_id).to_set
     @public_key = VapidKey.current.public_key
+  rescue VapidKey::Misconfigured => e
+    @vapid_error = e.message
   end
 
   def update
