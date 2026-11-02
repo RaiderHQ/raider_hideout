@@ -31,6 +31,21 @@ module Builds
       [ "#{PROVIDER}:#{match[1]}:#{match[2]}", attempt(match[3]) ]
     end
 
+    MAX_KEY_LENGTH = 512
+
+    # Project-scoped lookup for the API: [build, requested attempt] or nil. Never raises.
+    def find_build(project, build_key)
+      return nil unless build_key.is_a?(String) && build_key.length <= MAX_KEY_LENGTH
+
+      parsed = from_build_key(build_key)
+      exact = project.builds.find_by(build_key: build_key)
+      return [ exact, parsed ? parsed.last : 1 ] if exact
+      return nil unless parsed
+
+      merged = project.builds.find_by(ci_run_key: parsed.first)
+      merged && [ merged, parsed.last ]
+    end
+
     def attempt(value)
       number = Integer(value.to_s, 10)
       number.between?(1, MAX_ATTEMPT) ? number : 1

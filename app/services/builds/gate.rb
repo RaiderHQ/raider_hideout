@@ -3,17 +3,18 @@ module Builds
   # and freezes it with the rule values used. Never raises: an error is logged and
   # leaves the verdict null, so `raider-reporter gate` keeps waiting and then exits 2.
   class Gate
-    def self.evaluate!(build)
-      new(build).evaluate!
+    def self.evaluate!(build, attempt: 1)
+      new(build, attempt: attempt).evaluate!
     end
 
-    def initialize(build)
+    def initialize(build, attempt: 1)
       @build = build
+      @attempt = attempt
     end
 
     # True when this call wrote the verdict; false when it was already written or failed.
     def evaluate!
-      return false if @build.gate_evaluated_at
+      return false if recorded_attempt >= @attempt
 
       written = write_verdict
       broadcast if written
@@ -22,13 +23,20 @@ module Builds
 
     private
 
+    # A verdict written before attempts were tracked counts as attempt 1.
+    def recorded_attempt
+      @build.gate_attempt || (@build.gate_evaluated_at ? 1 : 0)
+    end
+
     # Computes the verdict and claims the row. Only this part reports evaluation failure.
     def write_verdict
       status, result = verdict
       now = Time.current
-      # Atomic claim: of two concurrent ready hooks, only one flips the null row.
-      Build.where(id: @build.id, gate_evaluated_at: nil)
-           .update_all(gate_status: status, gate_result: JSON.generate(result), gate_evaluated_at: now, updated_at: now) == 1
+      # Atomic claim: of two concurrent ready hooks, only one flips the row (null, or an older attempt).
+      Build.where(id: @build.id)
+           .where("gate_evaluated_at IS NULL OR COALESCE(gate_attempt, 1) < ?", @attempt)
+           .update_all(gate_status: status, gate_result: JSON.generate(result), gate_evaluated_at: now,
+                       gate_attempt: @attempt, updated_at: now) == 1
     rescue StandardError => e
       Rails.logger.error("[gate] build #{@build.id}: evaluation failed: #{e.class}: #{e.message}")
       false

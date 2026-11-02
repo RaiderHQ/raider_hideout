@@ -236,4 +236,27 @@ RSpec.describe Builds::Gate do
     expect(log).to include("[gate] build #{build.id}: gate verdict broadcast failed: RuntimeError: cable down")
     expect(log).not_to include("evaluation failed")
   end
+
+  describe "per attempt" do
+    it "re-evaluates for a higher attempt" do
+      gate_rule(min_pass_rate: 98)
+      expect(evaluate).to be(true)
+      expect(build.reload).to have_attributes(gate_status: "failed", gate_attempt: 1)
+
+      build.update_columns(passed_count: 100, failed_count: 0)
+
+      expect(described_class.evaluate!(build, attempt: 2)).to be(true)
+      expect(build.reload).to have_attributes(gate_status: "passed", gate_attempt: 2)
+      expect(stored["rules"]["pass_rate"]["actual"]).to eq(100)
+      expect(described_class.evaluate!(build, attempt: 2)).to be(false)
+      expect(described_class.evaluate!(build, attempt: 1)).to be(false)
+      expect(build.reload.gate_attempt).to eq(2)
+    end
+
+    it "treats a verdict with no recorded attempt as attempt 1" do
+      build.update_columns(gate_status: "failed", gate_result: "{}", gate_evaluated_at: Time.current, gate_attempt: nil)
+      expect(evaluate).to be(false)
+      expect(described_class.evaluate!(build, attempt: 2)).to be(true)
+    end
+  end
 end

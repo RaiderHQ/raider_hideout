@@ -6,7 +6,7 @@ module Api
       api_rate_limit to: 300, only: :show
 
       def show
-        build = @api_token.project.builds.find_by(build_key: params[:build_key].to_s)
+        build, = Builds::RunKey.find_build(@api_token.project, params[:build_key])
         return render json: { error: "not found" }, status: :not_found unless build
 
         url = project_build_url(build.project, build)

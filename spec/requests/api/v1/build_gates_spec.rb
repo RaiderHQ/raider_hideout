@@ -79,4 +79,48 @@ RSpec.describe "GET /api/v1/builds/gate", type: :request do
     expect(response).to have_http_status(:unauthorized)
     expect(response.parsed_body).to eq("error" => "unauthorized")
   end
+
+  describe "attempt keys" do
+    let(:run_build) do
+      create(:build, project: project, build_key: "github_actions:acme/shop:42:1", ci_run_key: "github_actions:acme/shop:42",
+                     provider: "github_actions", status: "passed")
+    end
+
+    it "resolves an attempt 2 key to the merged build" do
+      run_build.update_columns(gate_status: "passed", gate_result: JSON.generate("rules" => {}), gate_evaluated_at: Time.current, gate_attempt: 2)
+      expect(gate("github_actions:acme/shop:42:2")).to include("state" => "passed",
+        "url" => "http://www.example.com/projects/#{project.slug}/builds/#{run_build.id}")
+    end
+
+    it "answers pending for an attempt not yet evaluated" do
+      run_build.update_columns(gate_status: "failed", gate_result: JSON.generate("rules" => { "pass_rate" => { "min" => 98, "actual" => 96, "outcome" => "failed" } }),
+                               gate_evaluated_at: Time.current, gate_attempt: 1)
+      expect(gate("github_actions:acme/shop:42:2")).to include("state" => "pending", "rules" => [])
+      expect(response).to have_http_status(:ok)
+    end
+
+    it "answers the verdict once that attempt is evaluated" do
+      run_build.update_columns(gate_status: "failed", gate_result: JSON.generate("rules" => { "pass_rate" => { "min" => 98, "actual" => 96, "outcome" => "failed" } }),
+                               gate_evaluated_at: Time.current, gate_attempt: 1)
+      expect(gate("github_actions:acme/shop:42:1")).to include("state" => "failed")
+      run_build.update_columns(gate_status: "passed", gate_result: JSON.generate("rules" => {}), gate_attempt: 2)
+      expect(gate("github_actions:acme/shop:42:2")).to include("state" => "passed")
+    end
+
+    it "does not resolve another project's build" do
+      create(:build, build_key: "github_actions:acme/shop:42:1", ci_run_key: "github_actions:acme/shop:42", provider: "github_actions")
+      [ "github_actions:acme/shop:42:1", "github_actions:acme/shop:42:2" ].each do |key|
+        gate(key)
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+
+    it "404s a malformed key" do
+      run_build
+      [ "github_actions:acme/shop:42", "x", "github_actions:acme/shop:42:2:3", "a" * 5000 ].each do |key|
+        gate(key)
+        expect(response).to have_http_status(:not_found)
+      end
+    end
+  end
 end
