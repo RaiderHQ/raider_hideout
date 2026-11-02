@@ -24,7 +24,7 @@ module Api
       def to_h
         {
           id: @build.id, build_key: @build.build_key, branch: @build.branch, commit_sha: @build.commit_sha,
-          commit_message: @build.commit_message, status: @build.status, counts: self.class.counts(@build),
+          commit_message: @build.commit_message, status: @build.status, attempt: @build.latest_attempt, counts: self.class.counts(@build),
           pass_rate: @build.pass_rate, gate_status: @build.gate_report.state, duration_ms: @build.duration_ms,
           pr: @build.pr_number && { number: @build.pr_number, url: pull_request_url(@build) },
           ci_url: @build.ci_url, url: url(:project_build_url, @build.project, @build), created_at: time(@build.created_at)
@@ -32,7 +32,8 @@ module Api
       end
 
       def detail
-        to_h.merge(gate: gate, comparison: comparison, failures: failures, shards: shards, results_purged: @build.results_expired?)
+        to_h.merge(gate: gate, comparison: comparison, failures: failures, shards: shards, results_purged: @build.results_expired?,
+                      attempts: attempts, fixed_by_rerun: fixed_by_rerun)
       end
 
       private
@@ -68,6 +69,18 @@ module Api
                   .limit(FAILURES_LIMIT).map { |result| failure(result) }
       end
 
+      def attempts
+        @build.attempt_summaries.map do |summary|
+          { attempt: summary.attempt, status: summary.status, ready: summary.ready, run_count: summary.run_count,
+            counts: summary.counts, created_at: time(summary.created_at), ci_url: summary.ci_url }
+        end
+      end
+
+      # Tests that failed in an earlier attempt and passed in a later one; the failure row plus the fixing attempt.
+      def fixed_by_rerun
+        @build.fixed_by_rerun.first(FAILURES_LIMIT).map { |result, attempt| failure(result).merge(fixed_in_attempt: attempt) }
+      end
+
       def failure(result)
         test_case = result.test_case
         {
@@ -80,7 +93,7 @@ module Api
 
       def shards
         Run.in_shard_order(@build.runs.to_a).map do |run|
-          { index: run.shard_index, total: run.shard_total, label: run.shard_label, status: run.status,
+          { index: run.shard_index, total: run.shard_total, label: run.shard_label, status: run.status, attempt: run.attempt,
             counts: self.class.counts(run) }
         end
       end

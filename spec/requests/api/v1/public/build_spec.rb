@@ -57,7 +57,7 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds/:id", type: :request d
         "attempts" => 1, "app_frame" => nil }
     ])
     expect(body["shards"]).to eq([
-      { "index" => 1, "total" => 1, "label" => "rspec#1", "status" => "failed",
+      { "index" => 1, "total" => 1, "label" => "rspec#1", "status" => "failed", "attempt" => 1,
         "counts" => { "total" => 2, "passed" => 0, "failed" => 1, "skipped" => 0, "pending" => 0, "flaky" => 0, "quarantined" => 1 } }
     ])
     expect(body["results_purged"]).to be(false)
@@ -65,7 +65,68 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds/:id", type: :request d
     get api_v1_project_builds_path(project.slug), headers: headers
     expect_documented_response
     list_entry = response.parsed_body["data"].find { |entry| entry["id"] == build.id }
-    expect(body.except("gate", "comparison", "failures", "shards", "results_purged")).to eq(list_entry)
+    expect(body.except("gate", "comparison", "failures", "shards", "results_purged", "attempts", "fixed_by_rerun")).to eq(list_entry)
+  end
+
+  describe "re-run attempts" do
+    let(:build) do
+      create(:build, project: project, status: "passed", latest_attempt: 2, ci_url: "https://github.com/acme/shop/actions/runs/9",
+                     created_at: 1.hour.ago)
+    end
+
+    def rerun_run(attempt, status)
+      create(:run, project: project, build: build, attempt: attempt, shard_label: "rspec#1", shard_index: 1, shard_total: 1,
+                   status: status, total_count: 1, passed_count: status == "passed" ? 1 : 0, failed_count: status == "failed" ? 1 : 0,
+                   created_at: now - (3 - attempt).minutes, flakiness_analyzed_at: now - 1.minute)
+    end
+
+    it "lists attempts oldest first, tags shards, and reports tests fixed by a re-run" do
+      first = rerun_run(1, "failed")
+      second = rerun_run(2, "passed")
+      create(:test_result, run: first, test_case: login, status: "failed", superseded: true, failure_message: "boom")
+      create(:test_result, run: second, test_case: login, status: "passed")
+      build.recompute!
+
+      body = fetch(build.id)
+
+      expect(body["attempt"]).to eq(2)
+      expect(body["build_key"]).to eq(build.build_key)
+      expect(body["attempts"].map { |a| a.slice("attempt", "status", "run_count", "ci_url") }).to eq([
+        { "attempt" => 1, "status" => "failed", "run_count" => 1, "ci_url" => "https://github.com/acme/shop/actions/runs/9/attempts/1" },
+        { "attempt" => 2, "status" => "passed", "run_count" => 1, "ci_url" => "https://github.com/acme/shop/actions/runs/9/attempts/2" }
+      ])
+      expect(body["attempts"].first).to include("ready" => be_in([ true, false ]), "created_at" => (now - 2.minutes).utc.iso8601,
+                                                "counts" => hash_including("total" => 1, "failed" => 1))
+      expect(body["shards"].map { |shard| shard["attempt"] }).to eq([ 1, 2 ])
+      expect(body["failures"]).to be_empty
+      expect(body["fixed_by_rerun"].size).to eq(1)
+      expect(body["fixed_by_rerun"].first).to include("test_case_id" => login.id, "full_name" => "Login works", "status" => "passed",
+                                                      "fixed_in_attempt" => 2)
+    end
+
+    it "gives a single-attempt build one attempts entry and an empty fixed_by_rerun" do
+      plain = create(:build, project: project)
+      create(:run, project: project, build: plain)
+
+      body = fetch(plain.id)
+
+      expect(body["attempt"]).to eq(1)
+      expect(body["attempts"].map { |a| a["attempt"] }).to eq([ 1 ])
+      expect(body["fixed_by_rerun"]).to eq([])
+    end
+
+    it "caps fixed_by_rerun at the failures limit" do
+      stub_const("Api::V1::BuildPresenter::FAILURES_LIMIT", 2)
+      first = rerun_run(1, "failed")
+      second = rerun_run(2, "passed")
+      3.times do |i|
+        kase = create(:test_case, project: project, full_name: "Fix #{i}", file_path: "f.rb")
+        create(:test_result, run: first, test_case: kase, status: "failed", superseded: true)
+        create(:test_result, run: second, test_case: kase, status: "passed")
+      end
+
+      expect(fetch(build.id)["fixed_by_rerun"].size).to eq(2)
+    end
   end
 
   it "includes recorded steps on a failure that has them" do

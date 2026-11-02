@@ -89,6 +89,15 @@ RSpec.describe "MCP tools", type: :request do
                           "1 new failure vs main: Login works")
   end
 
+  it "returns the attempts from get_build" do
+    build = seed[:build]
+
+    result, = call_tool("get_build", project: slug, build_id: build.id)
+
+    expect(result["structuredContent"]["attempts"].map { |a| a["attempt"] }).to eq([ 1 ])
+    expect(result["structuredContent"]["fixed_by_rerun"]).to eq([])
+  end
+
   it "returns recorded steps from get_build" do
     build = seed[:build]
     steps = { "items" => [ { "id" => "s1", "title" => "Open" }, { "id" => "s2", "title" => "Click \"Save\"" } ], "failed" => 1 }
