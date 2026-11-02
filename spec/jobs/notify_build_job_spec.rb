@@ -143,4 +143,21 @@ RSpec.describe NotifyBuildJob do
       expect(NotificationDelivery.last.attempt).to eq(2)
     end
   end
+
+  describe "phone push" do
+    it "enqueues PushNotifyJob once even with no channels configured" do
+      expect { described_class.perform_now(build.id) }.to have_enqueued_job(PushNotifyJob).with(build.id, 1).once
+    end
+
+    it "enqueues nothing while the build is not ready" do
+      incomplete = create(:build, project: project, status: "failed", expected_shards: 2)
+      expect { described_class.perform_now(incomplete.id) }.not_to have_enqueued_job(PushNotifyJob)
+    end
+
+    it "passes the attempt" do
+      gh = create(:build, project: project, status: "failed", ci_run_key: "gha:7")
+      allow_any_instance_of(Build).to receive(:attempt_ready?).and_return(true)
+      expect { described_class.perform_now(gh.id, 2) }.to have_enqueued_job(PushNotifyJob).with(gh.id, 2)
+    end
+  end
 end

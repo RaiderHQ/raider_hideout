@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_02_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_02_170000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -221,6 +221,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_160000) do
     t.integer "organization_id", null: false
     t.index ["organization_id"], name: "index_projects_on_organization_id"
     t.index ["slug"], name: "index_projects_on_slug", unique: true
+  end
+
+  create_table "push_deliveries", force: :cascade do |t|
+    t.integer "push_subscription_id", null: false
+    t.integer "build_id", null: false
+    t.integer "attempt", default: 1, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["build_id"], name: "index_push_deliveries_on_build_id"
+    t.index ["push_subscription_id", "build_id", "attempt"], name: "index_push_deliveries_uniqueness", unique: true
   end
 
   create_table "push_muted_projects", force: :cascade do |t|
@@ -439,6 +449,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_02_160000) do
   add_foreign_key "organizations", "users", column: "personal_owner_id"
   add_foreign_key "personal_tokens", "users", on_delete: :cascade
   add_foreign_key "projects", "organizations"
+  add_foreign_key "push_deliveries", "builds", on_delete: :cascade
+  add_foreign_key "push_deliveries", "push_subscriptions", on_delete: :cascade
   add_foreign_key "push_muted_projects", "projects", on_delete: :cascade
   add_foreign_key "push_muted_projects", "users", on_delete: :cascade
   add_foreign_key "push_preferences", "users"
