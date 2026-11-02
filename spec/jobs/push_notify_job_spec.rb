@@ -90,6 +90,15 @@ RSpec.describe PushNotifyJob do
     expect(stub).to have_been_requested.twice
   end
 
+  it "passes the attempt through so the starter of a re-run gets rerun_result" do
+    build.update!(ci_run_key: "gha:1", status: "passed", failed_count: 0)
+    starter, subscription = subscribe_member(project)
+    BuildRerun.create!(build: build, user: starter, status: "accepted", attempt_before: 1)
+    described_class.perform_now(build.id, 2)
+    expect(enqueued_jobs.select { _1["job_class"] == "PushSendJob" }.map { _1["arguments"] }).to eq([ [ PushDelivery.sole.id, %w[rerun_result] ] ])
+    expect(PushDelivery.sole).to have_attributes(push_subscription_id: subscription.id, attempt: 2)
+  end
+
   it "records the success time on 201" do
     _, subscription = subscribe_member(project)
     stub_push(subscription.endpoint)

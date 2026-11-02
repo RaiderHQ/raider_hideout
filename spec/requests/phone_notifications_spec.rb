@@ -25,7 +25,7 @@ RSpec.describe "Phone notifications", type: :request do
       ENV.delete("HIDEOUT_VAPID_PUBLIC_KEY")
     end
 
-    it "shows the note, the button, this user's devices, three switches and the visible projects" do
+    it "shows the note, the button, this user's devices, four switches and the visible projects" do
       user.push_subscriptions.create!(endpoint: fcm_endpoint, p256dh: valid_p256dh, auth: valid_auth, device_label: "iPhone")
       create(:user).push_subscriptions.create!(endpoint: fcm_endpoint("zzz"), p256dh: valid_p256dh, auth: valid_auth, device_label: "OtherPersonPhone")
 
@@ -40,8 +40,7 @@ RSpec.describe "Phone notifications", type: :request do
       expect(response.body).to include(VapidKey.current.public_key)
       names = page_html.css("input[type=checkbox]").map { _1["name"] }
       expect(names).to contain_exactly("push_preference[default_branch_failures]", "push_preference[new_flaky]",
-                                       "push_preference[gate_failures]", "project_ids[]")
-      expect(response.body).not_to include("rerun_results")
+                                       "push_preference[gate_failures]", "push_preference[rerun_results]", "project_ids[]")
       expect(page_html.at_css("#project_ids_#{mine.id}")["checked"]).to be_present
     end
 

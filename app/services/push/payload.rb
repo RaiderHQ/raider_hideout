@@ -18,7 +18,13 @@ module Push
     end
 
     def self.title(build, project, events, attempt)
-      headline = events.include?("gate_failed") && !events.include?("failed") ? "quality gate failed" : Notifications::Message.headline_for(build, events)
+      headline = if events.include?("rerun_result")
+        build.status == "failed" ? "build failed" : "build passed"
+      elsif events.include?("gate_failed") && !events.include?("failed")
+        "quality gate failed"
+      else
+        Notifications::Message.headline_for(build, events)
+      end
       headline = "Re-run (attempt #{attempt}): #{headline}" if build.rerun_attempt?(attempt)
       "Raider: #{headline} — #{project.name.to_s.truncate(LABEL_LENGTH)}"
     end

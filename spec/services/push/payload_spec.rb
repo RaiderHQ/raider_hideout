@@ -27,6 +27,15 @@ RSpec.describe Push::Payload do
     expect(described_class.for(build, %w[failed], attempt: 2)[:title]).to eq("Raider: Re-run (attempt 2): build failed — Checkout")
   end
 
+  it "titles a re-run result by the merged build status, with the prefix once" do
+    build.update!(ci_run_key: "gha:1")
+    expect(described_class.for(build, %w[rerun_result failed], attempt: 2)[:title]).to eq("Raider: Re-run (attempt 2): build failed — Checkout")
+    build.update!(status: "passed", failed_count: 0)
+    payload = described_class.for(build, %w[rerun_result], attempt: 2)
+    expect(payload[:title]).to eq("Raider: Re-run (attempt 2): build passed — Checkout")
+    expect(payload[:path]).to eq(Rails.application.routes.url_helpers.project_build_path(project, build))
+  end
+
   it "titles gate and flaky pushes by their event" do
     expect(described_class.for(build, %w[gate_failed])[:title]).to eq("Raider: quality gate failed — Checkout")
     expect(described_class.for(build, %w[new_flaky])[:title]).to eq("Raider: new flaky tests — Checkout")
