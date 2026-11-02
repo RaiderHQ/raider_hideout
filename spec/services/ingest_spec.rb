@@ -532,6 +532,7 @@ RSpec.describe Ingest do
       end
       expect(project.builds.count).to eq(2)
       expect(project.builds.pluck(:ci_run_key)).to eq([ nil, nil ])
+      expect(project.builds.pluck(:latest_attempt)).to eq([ 1, 1 ])
     end
 
     it "keeps a GitHub payload without repository or build_key on its own build" do

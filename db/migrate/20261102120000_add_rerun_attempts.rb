@@ -8,9 +8,10 @@ class AddRerunAttempts < ActiveRecord::Migration[8.1]
   module Backfill
     def self.call
       MigrationBuild.reset_column_information
-      MigrationBuild.where(provider: "github_actions", attempt: [ "1", "", nil ]).find_each do |build|
-        key = Builds::RunKey.from_build_key(build.build_key)&.first
-        build.update_columns(ci_run_key: key) if key
+      # Only the attempt-1 build of a run owns the key; the unique index would reject a second claimant.
+      MigrationBuild.where(provider: "github_actions").find_each do |build|
+        key, attempt = Builds::RunKey.from_build_key(build.build_key)
+        build.update_columns(ci_run_key: key) if key && attempt == 1
       end
       MigrationBuild.where.not(gate_evaluated_at: nil).update_all(gate_attempt: 1)
     end

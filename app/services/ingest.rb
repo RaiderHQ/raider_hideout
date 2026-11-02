@@ -78,7 +78,7 @@ class Ingest
       build = find_or_create_build(data)
       backfill_build(build, data)
       run = @project.runs.create!(run_attributes(data).merge(build: build))
-      raise_latest_attempt(build, run.attempt)
+      raise_latest_attempt(build, run.attempt) if build.ci_run_key
       case_ids = upsert_test_cases(results)
       insert_results(run, results, case_ids)
       group_failures(run, results)

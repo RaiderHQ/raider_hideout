@@ -22,6 +22,10 @@ RSpec.describe Builds::RunKey do
       expect(described_class.from_ci("provider" => "github_actions", "repository" => "acme/shop", "build_id" => "4x2")).to be_nil
     end
 
+    it "rejects a repository with more than one slash" do
+      expect(described_class.from_ci("provider" => "github_actions", "repository" => "a/b/c", "build_id" => "42")).to be_nil
+    end
+
     it "never raises on odd input" do
       [ nil, "str", 5, [], { "provider" => { "a" => 1 } },
         { "provider" => "github_actions", "repository" => { "a" => 1 }, "build_id" => 10**40 },
@@ -46,6 +50,10 @@ RSpec.describe Builds::RunKey do
       expect(described_class.from_build_key("github_actions:a:b:c/d:42:2")).to be_nil
     end
 
+    it "rejects a repository with more than one slash" do
+      expect(described_class.from_build_key("github_actions:a/b/c:42:2")).to be_nil
+    end
+
     it "is nil for non-strings" do
       expect(described_class.from_build_key(nil)).to be_nil
       expect(described_class.from_build_key({ "a" => 1 })).to be_nil
@@ -56,10 +64,11 @@ RSpec.describe Builds::RunKey do
     it "parses positive integers" do
       expect(described_class.attempt("3")).to eq(3)
       expect(described_class.attempt(4)).to eq(4)
+      expect(described_class.attempt("2147483647")).to eq(2_147_483_647)
     end
 
     it "falls back to 1" do
-      [ "0", "-2", "abc", "99999999999", nil, "", {}, [ 1 ], 10**30, 2.5 ].each do |value|
+      [ "0", "-2", "abc", "99999999999", "2147483648", nil, "", {}, [ 1 ], 10**30, 2.5 ].each do |value|
         expect(described_class.attempt(value)).to eq(1)
       end
     end

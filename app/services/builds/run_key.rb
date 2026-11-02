@@ -3,10 +3,10 @@ module Builds
   # Every parsing path is total: odd or hostile input yields nil / 1, never raises.
   module RunKey
     PROVIDER = "github_actions".freeze
-    BUILD_KEY = %r{\Agithub_actions:([^:\s]+/[^:\s]+):(\d{1,20}):(\d{1,10})\z}
-    REPOSITORY = %r{\A[^:\s]+/[^:\s]+\z}
+    BUILD_KEY = %r{\Agithub_actions:([^:\s/]+/[^:\s/]+):(\d{1,20}):(\d{1,10})\z}
+    REPOSITORY = %r{\A[^:\s/]+/[^:\s/]+\z}
     RUN_ID = /\A\d{1,20}\z/
-    MAX_ATTEMPT = 1_000_000
+    MAX_ATTEMPT = 2_147_483_647
 
     module_function
 

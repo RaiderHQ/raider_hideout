@@ -7,12 +7,16 @@ RSpec.describe "re-run attempts backfill" do
     rerun = create(:build, provider: "github_actions", attempt: "2", build_key: "github_actions:acme/shop:43:2")
     azure = create(:build, provider: "azure_pipelines", attempt: "1", build_key: "azure_pipelines:x/y/z:9:1")
     synthetic = create(:build, provider: "github_actions", attempt: nil, build_key: "run:abc")
+    null_attempt_one = create(:build, provider: "github_actions", attempt: nil, build_key: "github_actions:acme/shop:44:1")
+    null_attempt_two = create(:build, provider: "github_actions", attempt: nil, build_key: "github_actions:acme/shop:44:2")
     evaluated = create(:build)
     evaluated.update_columns(gate_status: "failed", gate_evaluated_at: 1.hour.ago)
 
-    AddRerunAttempts::Backfill.call
+    expect { AddRerunAttempts::Backfill.call }.not_to raise_error
 
     expect(github.reload.ci_run_key).to eq("github_actions:acme/shop:42")
+    expect(null_attempt_one.reload.ci_run_key).to eq("github_actions:acme/shop:44")
+    expect(null_attempt_two.reload.ci_run_key).to be_nil
     expect(rerun.reload.ci_run_key).to be_nil
     expect(azure.reload.ci_run_key).to be_nil
     expect(synthetic.reload.ci_run_key).to be_nil
