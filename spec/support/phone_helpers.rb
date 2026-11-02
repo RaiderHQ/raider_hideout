@@ -1,15 +1,15 @@
 module PhoneHelpers
-  DESKTOP_SIZE = [ 1400, 1400 ].freeze
-
   def at_phone_width(width = 360)
-    page.driver.browser.manage.window.resize_to(width, 800)
+    browser = page.driver.browser
+    browser.execute_cdp("Emulation.setDeviceMetricsOverride", width: width, height: 800, deviceScaleFactor: 1, mobile: true)
     yield
   ensure
-    page.driver.browser.manage.window.resize_to(*DESKTOP_SIZE)
+    browser&.execute_cdp("Emulation.clearDeviceMetricsOverride")
   end
 
   def expect_no_horizontal_scroll
     widths = page.evaluate_script("[document.documentElement.scrollWidth, window.innerWidth]")
+    expect(widths.last).to be <= 500, "viewport is #{widths.last}px wide, not a phone width"
     expect(widths.first).to be <= widths.last
   end
 

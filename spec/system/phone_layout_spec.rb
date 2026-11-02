@@ -17,6 +17,7 @@ RSpec.describe "Phone layout", type: :system do
 
       at_phone_width(width) do
         visit root_path
+        expect(page.evaluate_script("window.innerWidth")).to eq(width)
         expect_no_horizontal_scroll
         find("#account-menu summary").click
         expect_tap_targets("#account-menu summary, #account-menu a, #account-menu button")
