@@ -56,7 +56,7 @@
 }
 
 /* Pagy nav */
-.pagy { @apply flex gap-1 text-sm; }
-.pagy a { @apply px-3 py-1 rounded-sm text-neutral-dk hover:bg-ruby-sub; }
+.pagy { @apply flex flex-wrap gap-1 text-sm; }
+.pagy a { @apply inline-flex items-center justify-center min-h-11 min-w-11 md:min-h-0 md:min-w-0 px-3 py-1 rounded-sm text-neutral-dk hover:bg-ruby-sub; }
 .pagy a[aria-current] { @apply bg-ruby text-white; }
 .pagy a[role="separator"], .pagy a:not([href]):not([aria-current]) { @apply text-neutral-mid pointer-events-none; }
