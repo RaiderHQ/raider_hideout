@@ -80,7 +80,10 @@ self.addEventListener("notificationclick", (event) => {
       // Same page, different query (e.g. ?result=<id>): navigate so the page reacts to it.
       const samePath = clients.find((client) => new URL(client.url).pathname === url.pathname)
       if (samePath && "navigate" in samePath) {
-        return samePath.navigate(url.href).then((navigated) => navigated && navigated.focus())
+        // navigate() rejects on a tab this worker does not control; fall back to a new window.
+        return samePath.navigate(url.href)
+          .then((navigated) => navigated && navigated.focus())
+          .catch(() => self.clients.openWindow(url.href))
       }
       return self.clients.openWindow(url.href)
     })

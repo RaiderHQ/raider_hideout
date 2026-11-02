@@ -61,6 +61,11 @@ RSpec.describe "Installable web app", type: :request do
         expect(source).to include('"/projects"')
       end
 
+      it "falls back to a new window when navigating an uncontrolled tab fails" do
+        expect(source).to include(".then((navigated) => navigated && navigated.focus())")
+        expect(source).to include(".catch(() => self.clients.openWindow(url.href))")
+      end
+
       it "always shows a notification for a push, even without a usable payload" do
         expect(source).to include("self.registration.showNotification(title, {")
         expect(source).to include("} catch (_error) {\n    payload = {}")
