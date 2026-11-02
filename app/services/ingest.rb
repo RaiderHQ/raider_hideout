@@ -231,10 +231,11 @@ class Ingest
         next if oversized?(attachment)
 
         file = @files.fetch(attachment["part"])
-        by_identifier.fetch(r["identifier"]).attachments.attach(
-          io: file.respond_to?(:tempfile) ? file.tempfile : file, filename: file.original_filename,
-          content_type: attachment["content_type"], metadata: { "name" => attachment["name"].to_s }
-        )
+        options = { io: file.respond_to?(:tempfile) ? file.tempfile : file, filename: file.original_filename,
+                    content_type: attachment["content_type"], metadata: { "name" => attachment["name"].to_s } }
+        # Marcel would rewrite the trace type to application/zip; keep the declared one.
+        options[:identify] = false if attachment["content_type"] == TRACE_CONTENT_TYPE
+        by_identifier.fetch(r["identifier"]).attachments.attach(**options)
       end
     end
   end

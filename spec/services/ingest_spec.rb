@@ -142,6 +142,12 @@ RSpec.describe Ingest do
       expect(result.dropped_attachments).to eq([])
     end
 
+    it "stores a trace with its declared content type, not the detected zip type" do
+      run = ingest_one([ attachment("trace", "att_0", "application/vnd.raider.trace+zip") ],
+                       { "att_0" => upload_file("trace.zip", file_fixture("trace-v1.zip").binread, "application/vnd.raider.trace+zip") })
+      expect(run.test_results.sole.attachments.first.blob.content_type).to eq("application/vnd.raider.trace+zip")
+    end
+
     it "keeps a trace over the general limit but under the trace limit" do
       stub_const("Ingest::MAX_ATTACHMENT_BYTES", 2)
       run = ingest_one([ attachment("trace", "att_0", "application/vnd.raider.trace+zip") ],

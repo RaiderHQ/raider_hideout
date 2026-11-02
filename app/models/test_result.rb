@@ -9,6 +9,8 @@ class TestResult < ApplicationRecord
   belongs_to :error_group, optional: true
   has_many_attached :attachments
 
+  scope :visible_to, ->(user) { joins(:run).where(runs: { project_id: user.projects.select(:id) }) }
+
   # Tags as one lowercased, |-delimited string ("|smoke|login|"), so a tag filter is a
   # portable LIKE on both SQLite and Postgres (spec §4.4).
   def self.tags_text_for(tags)
