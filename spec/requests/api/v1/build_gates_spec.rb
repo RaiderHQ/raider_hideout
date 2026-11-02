@@ -107,6 +107,13 @@ RSpec.describe "GET /api/v1/builds/gate", type: :request do
       expect(gate("github_actions:acme/shop:42:2")).to include("state" => "passed")
     end
 
+    it "returns the stored verdict for a legacy attempt-2 build without a ci_run_key" do
+      legacy = create(:build, project: project, build_key: "github_actions:acme/shop:42:2", ci_run_key: nil,
+                              provider: "github_actions", status: "failed")
+      legacy.update_columns(gate_status: "failed", gate_result: JSON.generate("rules" => {}), gate_evaluated_at: Time.current, gate_attempt: 1)
+      expect(gate("github_actions:acme/shop:42:2")).to include("state" => "failed")
+    end
+
     it "does not resolve another project's build" do
       create(:build, build_key: "github_actions:acme/shop:42:1", ci_run_key: "github_actions:acme/shop:42", provider: "github_actions")
       [ "github_actions:acme/shop:42:1", "github_actions:acme/shop:42:2" ].each do |key|

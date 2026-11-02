@@ -39,7 +39,8 @@ module Builds
 
       parsed = from_build_key(build_key)
       exact = project.builds.find_by(build_key: build_key)
-      return [ exact, parsed ? parsed.last : 1 ] if exact
+      # A build without ci_run_key predates merging: its own key is its only attempt.
+      return [ exact, exact.ci_run_key && parsed ? parsed.last : 1 ] if exact
       return nil unless parsed
 
       merged = project.builds.find_by(ci_run_key: parsed.first)
