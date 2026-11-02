@@ -76,7 +76,7 @@ class Build < ApplicationRecord
       AttemptSummary.new(
         attempt: attempt, status: group.any? { |run| run.status == "failed" } ? "failed" : "passed",
         ready: attempt_ready?(attempt), run_count: group.size, counts: counts,
-        created_at: group.map(&:created_at).min, ci_url: ci_url.present? ? "#{ci_url}/attempts/#{attempt}" : nil
+        created_at: group.map(&:created_at).min, ci_url: ci_run_key.present? && ci_url.present? ? "#{ci_url}/attempts/#{attempt}" : ci_url
       )
     end
   end

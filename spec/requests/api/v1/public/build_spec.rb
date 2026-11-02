@@ -70,7 +70,7 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds/:id", type: :request d
 
   describe "re-run attempts" do
     let(:build) do
-      create(:build, project: project, status: "passed", latest_attempt: 2, ci_url: "https://github.com/acme/shop/actions/runs/9",
+      create(:build, project: project, status: "passed", latest_attempt: 2, ci_run_key: "github_actions:acme/shop:9", ci_url: "https://github.com/acme/shop/actions/runs/9",
                      created_at: 1.hour.ago)
     end
 
@@ -95,13 +95,21 @@ RSpec.describe "GET /api/v1/projects/:project_slug/builds/:id", type: :request d
         { "attempt" => 1, "status" => "failed", "run_count" => 1, "ci_url" => "https://github.com/acme/shop/actions/runs/9/attempts/1" },
         { "attempt" => 2, "status" => "passed", "run_count" => 1, "ci_url" => "https://github.com/acme/shop/actions/runs/9/attempts/2" }
       ])
-      expect(body["attempts"].first).to include("ready" => be_in([ true, false ]), "created_at" => (now - 2.minutes).utc.iso8601,
+      expect(body["attempts"].first).to include("ready" => true, "created_at" => (now - 2.minutes).utc.iso8601,
                                                 "counts" => hash_including("total" => 1, "failed" => 1))
+      expect(body["attempts"].map { |a| a["ready"] }).to eq([ true, false ]) # attempt 2 is inside the quiet period
       expect(body["shards"].map { |shard| shard["attempt"] }).to eq([ 1, 2 ])
       expect(body["failures"]).to be_empty
       expect(body["fixed_by_rerun"].size).to eq(1)
       expect(body["fixed_by_rerun"].first).to include("test_case_id" => login.id, "full_name" => "Login works", "status" => "passed",
                                                       "fixed_in_attempt" => 2)
+    end
+
+    it "leaves the stored ci_url unchanged on a build without a ci_run_key" do
+      azure = create(:build, project: project, ci_url: "https://dev.azure.com/acme/_build/results?buildId=5")
+      create(:run, project: project, build: azure)
+
+      expect(fetch(azure.id)["attempts"].first["ci_url"]).to eq("https://dev.azure.com/acme/_build/results?buildId=5")
     end
 
     it "gives a single-attempt build one attempts entry and an empty fixed_by_rerun" do
