@@ -12,11 +12,16 @@ class FlakinessJob < ApplicationJob
     run.build.recompute!
     run.update_column(:flakiness_analyzed_at, Time.current)
     build = run.build.reload
+    if build.rerun_attempt?(run.attempt)
+      # Each analysed re-run run schedules its own check; the one after the last quiet period notifies.
+      NotifyBuildJob.set(wait: Build::ATTEMPT_QUIET_PERIOD + 5.seconds).perform_later(build.id, run.attempt)
+      return
+    end
     return unless build.ready_to_notify?
 
     Builds::Baseline.assign!(build)
-    Builds::Gate.evaluate!(build)
-    NotifyBuildJob.perform_later(build.id)
+    Builds::Gate.evaluate!(build, attempt: run.attempt)
+    NotifyBuildJob.perform_later(build.id, run.attempt)
   end
 
   private

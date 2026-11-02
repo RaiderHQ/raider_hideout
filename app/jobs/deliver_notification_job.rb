@@ -55,7 +55,7 @@ class DeliverNotificationJob < ApplicationJob
     if delivery.kind == "test"
       Notifications::Message.test(channel, url_options: options)
     else
-      Notifications::Message.for_build(delivery.build, delivery.events, url_options: options)
+      Notifications::Message.for_build(delivery.build, delivery.events, url_options: options, attempt: delivery.attempt)
     end
   end
 end

@@ -101,4 +101,37 @@ RSpec.describe Notifications::Rules do
                                flaky_since_build: build)
     expect(described_class.call(channel, build)).to eq(%w[failed new_flaky low_pass_rate])
   end
+
+
+  describe "re-run attempts" do
+    let(:test_case) { create(:test_case, project: project) }
+    let(:rerun) { make_build(status: "failed", ci_run_key: "gh:o/r:5") }
+
+    before do
+      run1 = create(:run, project: project, build: rerun, attempt: 1, status: "failed", failed_count: 1, total_count: 1)
+      create(:test_result, run: run1, test_case: test_case, status: "failed")
+      @run2 = create(:run, project: project, build: rerun, attempt: 2, status: "passed", passed_count: 1, total_count: 1)
+    end
+
+    it "fires recovered for attempt 2 when the build passed and a re-run fixed tests" do
+      create(:test_result, run: @run2, test_case: test_case, status: "passed")
+      rerun.recompute!
+      expect(rerun.status).to eq("passed")
+      expect(described_class.call(channel, rerun, attempt: 2)).to eq(%w[recovered])
+    end
+
+    it "respects on_recovered" do
+      create(:test_result, run: @run2, test_case: test_case, status: "passed")
+      rerun.recompute!
+      channel.update!(on_recovered: false)
+      expect(described_class.call(channel, rerun, attempt: 2)).to eq([])
+    end
+
+    it "fires failed for attempt 2 when still failing" do
+      @run2.update!(status: "failed", failed_count: 1, passed_count: 0)
+      create(:test_result, run: @run2, test_case: test_case, status: "failed")
+      rerun.recompute!
+      expect(described_class.call(channel, rerun, attempt: 2)).to eq(%w[failed])
+    end
+  end
 end

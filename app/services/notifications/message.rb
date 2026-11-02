@@ -7,14 +7,15 @@ module Notifications
     COMMIT_LENGTH = 80
     ITEM_LENGTH = 200
 
-    def self.for_build(build, events, url_options:)
+    def self.for_build(build, events, url_options:, attempt: 1)
       project = build.project
+      rerun = build.rerun_attempt?(attempt)
       headline = headline_for(build, events)
+      headline = "Re-run (attempt #{attempt}): #{headline}" if rerun
       new(
         title: "Raider: #{headline} — #{project.name}",
         headline: headline,
-        summary: "#{build.failed_count} failed, #{build.passed_count} passed, " \
-                 "#{build.skipped_count} skipped (#{build.duration_label})",
+        summary: summary_for(build, rerun),
         project_name: project.name,
         branch: build.branch,
         commit: commit_label(build),
@@ -24,6 +25,14 @@ module Notifications
         build_url: Rails.application.routes.url_helpers.project_build_url(project, build, **url_options),
         pr_url: ApplicationController.helpers.pull_request_url(build)
       )
+    end
+
+    def self.summary_for(build, rerun)
+      counts = "#{build.failed_count} failed, #{build.passed_count} passed, " \
+               "#{build.skipped_count} skipped (#{build.duration_label})"
+      return counts unless rerun
+
+      "#{build.fixed_by_rerun.size} fixed, #{build.failed_count} still failing\n#{counts}"
     end
 
     def self.test(channel, url_options:)

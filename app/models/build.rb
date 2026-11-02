@@ -4,6 +4,9 @@ class Build < ApplicationRecord
   has_many :runs, dependent: :destroy
   has_many :notification_deliveries, dependent: :destroy
 
+  # Time attempt-N runs must stay quiet before their notification, so a re-run's late shards land first.
+  ATTEMPT_QUIET_PERIOD = 2.minutes
+
   validates :build_key, presence: true, uniqueness: { scope: :project_id }
 
   after_create_commit -> { broadcast_prepend_later_to [ project, :builds ], target: "builds", partial: "builds/build", locals: { build: self } }
@@ -32,6 +35,11 @@ class Build < ApplicationRecord
   def first_attempt_runs
     first = runs.minimum(:attempt)
     runs.where(attempt: first || 1)
+  end
+
+  # The lowest attempt present; 1 when the build has no runs.
+  def first_attempt
+    runs.loaded? ? (runs.map(&:attempt).min || 1) : (runs.minimum(:attempt) || 1)
   end
 
   def mark_superseded!
@@ -121,11 +129,34 @@ class Build < ApplicationRecord
     !expected_shards || first_attempt_run_count >= expected_shards
   end
 
+  # Every first-attempt run analysed; later attempts notify on their own (attempt_ready?).
   def ready_to_notify?
     return false unless complete?
 
     # Reuse already-loaded runs (the build page loads them) instead of another query.
-    runs.loaded? ? runs.none? { |run| run.flakiness_analyzed_at.nil? } : !runs.where(flakiness_analyzed_at: nil).exists?
+    if runs.loaded?
+      first = first_attempt
+      runs.none? { |run| run.attempt == first && run.flakiness_analyzed_at.nil? }
+    else
+      !first_attempt_runs.where(flakiness_analyzed_at: nil).exists?
+    end
+  end
+
+  # A GitHub re-run of a build whose earlier attempt is present: notified separately, after a quiet period.
+  def rerun_attempt?(attempt)
+    ci_run_key.present? && attempt > first_attempt
+  end
+
+  # The first attempt follows ready_to_notify?. A later attempt is ready once its runs cover the
+  # previous attempt's failed runs, are all analysed, and have been quiet for ATTEMPT_QUIET_PERIOD.
+  def attempt_ready?(attempt)
+    return ready_to_notify? if attempt <= first_attempt
+
+    mine = runs.where(attempt: attempt)
+    floor = [ 1, runs.where(attempt: attempt - 1, status: "failed").count ].max
+    return false if mine.count < floor || mine.where(flakiness_analyzed_at: nil).exists?
+
+    mine.maximum(:flakiness_analyzed_at) <= ATTEMPT_QUIET_PERIOD.ago
   end
 
   def gate_report
@@ -167,15 +198,13 @@ class Build < ApplicationRecord
     runs.count { |run| run.attempt == first }
   end
 
-  def single_attempt? = !runs.where("attempt > 1").exists?
-
   def fixed_slot?(result, superseded_failed)
     superseded_failed.joins(:run).where(test_case_id: result.test_case_id)
                      .where("COALESCE(runs.shard_label, '') = ?", result.run.shard_label.to_s).exists?
   end
 
   def recomputed_status(failed, run_count, expected)
-    if failed.positive? || (single_attempt? && runs.where(status: "failed").exists?) then "failed"
+    if failed.positive? then "failed"
     elsif expected && run_count < expected then "incomplete"
     else "passed"
     end

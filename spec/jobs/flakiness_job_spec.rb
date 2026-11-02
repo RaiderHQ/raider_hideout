@@ -2,6 +2,7 @@ require "rails_helper"
 
 RSpec.describe FlakinessJob do
   include ActiveJob::TestHelper
+  include ActiveSupport::Testing::TimeHelpers
 
   let(:project) { create(:project) }
   let(:test_case) { create(:test_case, project: project) }
@@ -160,7 +161,7 @@ RSpec.describe FlakinessJob do
       run = record("passed", branch: "main", sha: "a")
       calls = []
       allow(Builds::Baseline).to receive(:assign!).and_wrap_original { |m, *a| calls << :assign; m.call(*a) }
-      allow(Builds::Gate).to receive(:evaluate!).and_wrap_original { |m, *a| calls << :gate; m.call(*a) }
+      allow(Builds::Gate).to receive(:evaluate!).and_wrap_original { |m, *a, **k| calls << :gate; m.call(*a, **k) }
       allow(NotifyBuildJob).to receive(:perform_later) { calls << :notify }
 
       described_class.perform_now(run.id)
@@ -201,13 +202,13 @@ RSpec.describe FlakinessJob do
       run = record("passed", branch: "main", sha: "a")
       allow(Notifications::Rules).to receive(:new_flaky_scope).and_raise(RuntimeError, "boom")
 
-      expect { described_class.perform_now(run.id) }.to have_enqueued_job(NotifyBuildJob).with(run.build_id)
+      expect { described_class.perform_now(run.id) }.to have_enqueued_job(NotifyBuildJob).with(run.build_id, 1)
       expect(run.build.reload.gate_evaluated_at).to be_nil
     end
 
     it "enqueues NotifyBuildJob when the build is complete" do
       run = record("passed", branch: "main", sha: "a")
-      expect { described_class.perform_now(run.id) }.to have_enqueued_job(NotifyBuildJob).with(run.build_id)
+      expect { described_class.perform_now(run.id) }.to have_enqueued_job(NotifyBuildJob).with(run.build_id, 1)
     end
 
     it "waits until every run of the build is analysed" do
@@ -216,7 +217,7 @@ RSpec.describe FlakinessJob do
       second = create(:run, project: project, build: build)
       create(:test_result, run: first, test_case: test_case, status: "passed")
       expect { described_class.perform_now(first.id) }.not_to have_enqueued_job(NotifyBuildJob)
-      expect { described_class.perform_now(second.id) }.to have_enqueued_job(NotifyBuildJob).with(build.id)
+      expect { described_class.perform_now(second.id) }.to have_enqueued_job(NotifyBuildJob).with(build.id, 1)
     end
 
     it "assigns the baseline before the notification is enqueued" do
@@ -244,6 +245,43 @@ RSpec.describe FlakinessJob do
       run = create(:run, project: project, build: build)
       create(:test_result, run: run, test_case: test_case, status: "passed")
       expect { described_class.perform_now(run.id) }.not_to have_enqueued_job(NotifyBuildJob)
+    end
+  end
+
+
+  describe "attempts" do
+    let(:gh_build) { create(:build, project: project, ci_run_key: "gh:o/r:3") }
+
+    def attempt_run(attempt, build: gh_build)
+      run = create(:run, project: project, build: build, attempt: attempt, status: "failed", failed_count: 1, total_count: 1)
+      create(:test_result, run: run, test_case: test_case, status: "failed")
+      run
+    end
+
+    it "notifies attempt 1 as today" do
+      run = attempt_run(1)
+      expect { described_class.perform_now(run.id) }.to have_enqueued_job(NotifyBuildJob).with(gh_build.id, 1)
+    end
+
+    it "delays the notification of a re-run attempt and leaves baseline and gate alone" do
+      first = attempt_run(1)
+      described_class.perform_now(first.id)
+      baseline_at = gh_build.reload.baseline_assigned_at
+      run = attempt_run(2)
+      expect(Builds::Baseline).not_to receive(:assign!)
+      expect(Builds::Gate).not_to receive(:evaluate!)
+      freeze_time do
+        expect { described_class.perform_now(run.id) }
+          .to have_enqueued_job(NotifyBuildJob).with(gh_build.id, 2).at(Build::ATTEMPT_QUIET_PERIOD.from_now + 5.seconds)
+      end
+      expect(gh_build.reload.baseline_assigned_at).to eq(baseline_at)
+    end
+
+    it "treats attempt 2 of a build without ci_run_key as the first attempt, passing its attempt to the gate" do
+      azure = create(:build, project: project)
+      run = attempt_run(2, build: azure)
+      expect(Builds::Gate).to receive(:evaluate!).with(azure, attempt: 2).and_call_original
+      expect { described_class.perform_now(run.id) }.to have_enqueued_job(NotifyBuildJob).with(azure.id, 2)
     end
   end
 end

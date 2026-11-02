@@ -1,6 +1,7 @@
 require "rails_helper"
 
 RSpec.describe Build do
+  include ActiveSupport::Testing::TimeHelpers
   let(:project) { create(:project) }
   let(:build_record) { create(:build, project: project) }
 
@@ -262,6 +263,62 @@ RSpec.describe Build do
       lone.comparison_branch
       ActiveSupport::Notifications.unsubscribe(sub)
       expect(count).to eq(0)
+    end
+  end
+
+
+  describe "#attempt_ready?" do
+    let(:b) { create(:build, project: project, ci_run_key: "gh:r:1") }
+
+    def analysed_run(attempt, at: Time.current, status: "failed")
+      create(:run, project: project, build: b, attempt: attempt, status: status, flakiness_analyzed_at: at)
+    end
+
+    it "equals the first-attempt rule for the first attempt" do
+      expect(b.attempt_ready?(1)).to eq(b.ready_to_notify?)
+      analysed_run(1)
+      expect(b.reload.attempt_ready?(1)).to be(true)
+    end
+
+    it "ignores a late attempt-2 run still being analysed when judging attempt 1" do
+      analysed_run(1)
+      create(:run, project: project, build: b, attempt: 2)
+      expect(b.reload).to be_ready_to_notify
+    end
+
+    it "reports the lowest attempt present as first_attempt, 1 when none" do
+      expect(b.first_attempt).to eq(1)
+      analysed_run(2)
+      expect(b.reload.first_attempt).to eq(2)
+      analysed_run(3)
+      expect(b.reload.first_attempt).to eq(2)
+    end
+
+    it "is false below the failed-run floor, inside the quiet period, and true after it" do
+      analysed_run(1)
+      analysed_run(1)
+      analysed_run(2, at: Time.current)
+      expect(b.reload.attempt_ready?(2)).to be(false)
+      analysed_run(2, at: Time.current)
+      expect(b.reload.attempt_ready?(2)).to be(false)
+      travel(Build::ATTEMPT_QUIET_PERIOD + 1.second) do
+        expect(b.reload.attempt_ready?(2)).to be(true)
+      end
+    end
+
+    it "is false when an attempt-N run is not analysed or no attempt-N run exists" do
+      analysed_run(1)
+      expect(b.attempt_ready?(2)).to be(false)
+      create(:run, project: project, build: b, attempt: 2)
+      travel(Build::ATTEMPT_QUIET_PERIOD + 1.second) do
+        expect(b.reload.attempt_ready?(2)).to be(false)
+      end
+    end
+
+    it "needs one attempt-N run when the previous attempt had no failed run" do
+      analysed_run(1, status: "passed")
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(true)
     end
   end
 end
