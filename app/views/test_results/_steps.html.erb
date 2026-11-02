@@ -27,7 +27,7 @@
             <%= status_dot("failed", title: "Failed") %>
             <span class="min-w-0 break-words font-semibold"><span class="sr-only">Failed:</span> <%= item["title"] %></span>
           </div>
-          <%= render "test_results/failure", result: result, shot: shot %>
+          <%= render "test_results/failure", result: result, shot: shot, videos: videos %>
         </li>
       <% else %>
         <li data-testid="step-not-run" class="flex items-center gap-2 px-2 py-1 text-sm opacity-60">
@@ -39,6 +39,6 @@
     <% end %>
   </ol>
   <% if failed.nil? %>
-    <%= render "test_results/failure", result: result, shot: shot %>
+    <%= render "test_results/failure", result: result, shot: shot, videos: videos %>
   <% end %>
 </div>

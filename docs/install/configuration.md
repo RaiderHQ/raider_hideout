@@ -80,6 +80,16 @@ Without `SMTP_ADDRESS`, invitations show a link to copy, the forgot-password lin
 | `SENTRY_DSN` | — | Send errors to Sentry (personal data scrubbed). |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | Performance tracing sample rate. |
 
+## Phone notifications
+
+| Variable | Default | What it does |
+|---|---|---|
+| `HIDEOUT_VAPID_PUBLIC_KEY`, `HIDEOUT_VAPID_PRIVATE_KEY` | generated, stored encrypted in the database | Your own VAPID pair. Set both or neither; one alone fails. While set, `hideout:vapid:rotate` refuses to run. Setting or changing these after devices subscribed means every device must turn notifications on again; until then sends fail as unauthorized and are only logged. |
+| `HIDEOUT_VAPID_SUBJECT` | the owner's `mailto:` address, else the project URL | Contact sent to push services. |
+| `HIDEOUT_PUSH_HOSTS` | — | Extra push hosts, comma-separated. Added to the default allowlist (`fcm.googleapis.com`, `*.push.apple.com`, `updates.push.services.mozilla.com`, `*.notify.windows.com`). |
+
+Phones need HTTPS; see the README's Phone section.
+
 ## Deprecated (one release)
 
 `R2_ENDPOINT`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `BACKUP_ACCESS_KEY_ID`, `BACKUP_SECRET_ACCESS_KEY` and `ACTIVE_STORAGE_SERVICE=r2`: see [upgrading](upgrading.md).

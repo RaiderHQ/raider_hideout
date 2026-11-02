@@ -4,6 +4,9 @@ class User < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :saved_views, dependent: :delete_all
   has_many :personal_tokens, dependent: :delete_all
+  has_many :push_subscriptions, dependent: :delete_all
+  has_one :push_preference, dependent: :delete
+  has_many :push_muted_projects, dependent: :delete_all
   has_many :organizations, through: :memberships
   has_one :personal_organization, class_name: "Organization", foreign_key: :personal_owner_id,
                                   inverse_of: :personal_owner, dependent: :destroy
@@ -26,6 +29,12 @@ class User < ApplicationRecord
 
   def projects
     Project.where(organization_id: memberships.select(:organization_id))
+  end
+
+  def push_preference!
+    push_preference || create_push_preference!
+  rescue ActiveRecord::RecordNotUnique
+    reload_push_preference
   end
 
   def role_in(organization)

@@ -76,9 +76,17 @@ Admins turn on gate rules on a project's Gate page (`/projects/:id/gate`): a min
 
 raider_reporter 0.9.0+ `raider-reporter gate` polls `GET /api/v1/builds/gate?build_key=` (project token, 300 requests a minute; `{"state","build_state","shards","rules","url"}`, where `state` is `pending` until the verdict exists), exits 1 when the gate failed and 2 when it gets no verdict, and posts a `raider/gate` status. `GET /api/v1/builds/summary` also returns `"gate"`. Builds that existed before gates shipped have the verdict `none`. ruby_raider 3.9.0 projects can opt in to a CI gate job with the variable `RAIDER_GATE=1`.
 
+## Phone
+
+Hideout installs to a phone's home screen and sends push notifications. Both need HTTPS: any origin other than `localhost` over plain http cannot register a service worker or receive push. Put a reverse proxy with TLS in front, or run `tailscale serve` for a private tailnet address. iPhone and iPad need iOS 17.2 or later, and Hideout added to the Home Screen first (Share, then Add to Home Screen).
+
+Open the account menu, then Phone notifications, and tap Turn on notifications on each device. Switch projects on or off, and pick the events: failures on a project's default branch (on by default), new flaky tests and quality gate failures (both opt-in).
+
+Push uses a VAPID key pair, generated on first use and stored encrypted in the database. Back up the database together with `storage/hideout-secrets.yml`, which holds the encryption keys. To use your own pair, or to change the contact or the allowed push hosts, see [configuration](docs/install/configuration.md#phone-notifications). `bin/rails hideout:vapid:rotate` replaces the pair and removes every device, so each phone must turn notifications on again. It refuses to run while the key variables are set.
+
 ## Public API and MCP
 
-Any signed-in user creates personal tokens on the Tokens page (`/account/tokens`, in the navbar): read-only, prefixed `rdp_`, expiring after 30, 90 (default) or 365 days or never, at most 20 active per user. A token is shown once; Raider stores only its SHA-256 digest and its first 8 characters. Revoking keeps the row and stops the token at once. A token sees exactly the projects of its owner's organizations, checked on every request, so leaving an organization removes its projects immediately. Project (`rdr_`) tokens and personal tokens never work in each other's place.
+Any signed-in user creates personal tokens on the Tokens page (`/account/tokens`, in the Account menu): read-only, prefixed `rdp_`, expiring after 30, 90 (default) or 365 days or never, at most 20 active per user. A token is shown once; Raider stores only its SHA-256 digest and its first 8 characters. Revoking keeps the row and stops the token at once. A token sees exactly the projects of its owner's organizations, checked on every request, so leaving an organization removes its projects immediately. Project (`rdr_`) tokens and personal tokens never work in each other's place.
 
 The JSON API lives under `/api/v1/projects` (`Authorization: Bearer rdp_…`): projects, a project's 30-day health, builds and a build (by id or `latest`), Explore test search (`?q=`, Explore syntax; notices come back in `meta.notices`) and a test, error groups and a group, flaky tests and active quarantines. Lists take `page` and `per_page` (1–100, default 50). `docs/openapi.yaml` (OpenAPI 3.1, served at `/api/v1/openapi.json`) documents every endpoint, and every API request spec validates its response against it.
 

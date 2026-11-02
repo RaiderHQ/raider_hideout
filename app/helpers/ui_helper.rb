@@ -1,6 +1,6 @@
 # Class strings copied from raider_desktop components (Button, StatusIndicators).
 module UiHelper
-  BUTTON_BASE = "inline-flex items-center justify-center gap-2 min-w-[150px] px-5 py-2.5 text-sm " \
+  BUTTON_BASE = "inline-flex items-center justify-center gap-2 min-h-11 md:min-h-0 min-w-[150px] px-5 py-2.5 text-sm " \
                 "font-semibold rounded-md tracking-wide transition-all duration-200"
   BUTTON_VARIANTS = {
     primary: "bg-ruby text-white hover:shadow-card-hover",

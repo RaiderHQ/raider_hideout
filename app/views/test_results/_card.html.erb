@@ -2,22 +2,22 @@
 <% failing = TestResult::FAILING_STATUSES.include?(result.status) %>
 <% traces = result.attachments.select { |a| a.content_type == Ingest::TRACE_CONTENT_TYPE }.sort_by(&:created_at).reverse %>
 <% attachments = result.attachments.to_a - traces %>
-<details class="bg-neutral-wh rounded-md border border-neutral-bdr shadow-card" <%= "open" if failed %>>
-  <summary class="flex items-center gap-3 px-4 py-3 cursor-pointer list-none">
+<details id="<%= dom_id(result) %>" class="bg-neutral-wh rounded-md border border-neutral-bdr shadow-card" <%= "open" if failed || local_assigns[:open] %>>
+  <summary class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 md:py-3 min-h-11 md:min-h-0 cursor-pointer list-none">
     <%= status_dot(result.status) %>
-    <span class="flex-1 font-medium"><%= result.test_case.full_name %></span>
+    <span class="min-w-0 basis-[calc(100%-2rem)] sm:basis-0 flex-1 break-words font-medium"><%= result.test_case.full_name %></span>
     <% if local_assigns[:shard_label].present? %><span data-shard-tag class="text-[11px] font-mono px-2 py-0.5 rounded-sm bg-neutral-lt text-neutral-dk"><%= shard_label %></span><% end %>
     <% if local_assigns[:tag] %><%= failure_tag_pill(tag) %>
     <% elsif local_assigns[:verdict]&.flaky %><%= status_pill("flaky") %><% end %>
-    <% if local_assigns[:group] %><%= link_to "Group · #{group_size} tests", project_error_path(result.run.project, group), data: { testid: "group-pill" }, class: "#{UiHelper::PILL_BASE} bg-ruby-sub text-ruby" %><% end %>
+    <% if local_assigns[:group] %><%= link_to "Group · #{group_size} tests", project_error_path(result.run.project, group), data: { testid: "group-pill" }, class: "#{UiHelper::PILL_BASE.sub("inline-block", "inline-flex items-center")} min-h-11 md:min-h-0 bg-ruby-sub text-ruby" %><% end %>
     <% if result.status == "quarantined" %><%= status_pill("quarantined") %><% end %>
     <% if result.attempts > 1 %><span class="text-xs text-neutral-mid"><%= result.attempts %> attempts</span><% end %>
     <span class="text-xs text-neutral-mid"><%= result.duration_ms %> ms</span>
-    <%= link_to "History", project_test_case_path(result.run.project, result.test_case), class: "text-xs text-ruby" %>
+    <%= link_to "History", project_test_case_path(result.run.project, result.test_case), class: "inline-flex items-center min-h-11 md:min-h-0 text-xs text-ruby" %>
   </summary>
   <div class="px-4 pb-4 space-y-3">
     <% traces.each_with_index do |trace, index| %>
-      <p><%= link_to (traces.size > 1 ? "Open trace (#{index + 1} of #{traces.size})" : "Open trace"), test_result_trace_path(result, trace), data: { turbo: false, turbo_prefetch: false }, class: "text-xs text-ruby" %></p>
+      <p><%= link_to (traces.size > 1 ? "Open trace (#{index + 1} of #{traces.size})" : "Open trace"), test_result_trace_path(result, trace), data: { turbo: false, turbo_prefetch: false }, class: "inline-flex items-center min-h-11 md:min-h-0 text-xs text-ruby" %></p>
     <% end %>
     <% if failing %>
       <% images = attachments.select { |a| a.content_type.to_s.start_with?("image/") } %>
@@ -25,22 +25,9 @@
       <% videos = attachments.select { |a| a.content_type.to_s.start_with?("video/") } %>
       <% others = attachments - [ shot ] - videos %>
       <% if result.steps.present? %>
-        <%= render "test_results/steps", result: result, shot: shot %>
+        <%= render "test_results/steps", result: result, shot: shot, videos: videos %>
       <% else %>
-        <%= render "test_results/failure", result: result, shot: shot %>
-      <% end %>
-      <% if videos.any? %>
-        <details>
-          <summary class="text-xs text-neutral-mid cursor-pointer">Failure video</summary>
-          <div class="mt-2 flex flex-wrap gap-3">
-            <% videos.each do |video| %>
-              <figure class="space-y-1">
-                <video controls preload="metadata" src="<%= attachment_path(video) %>" class="h-48 rounded-sm"></video>
-                <figcaption class="text-xs text-neutral-mid"><%= result.attachment_name(video) %></figcaption>
-              </figure>
-            <% end %>
-          </div>
-        </details>
+        <%= render "test_results/failure", result: result, shot: shot, videos: videos %>
       <% end %>
       <% if others.any? %>
         <div class="flex flex-wrap gap-3">

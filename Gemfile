@@ -18,6 +18,10 @@ gem "importmap-rails"
 gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
+# Web Push for phone notifications. openssl is pinned to Ruby 4.0.5's bundled openssl version; re-check on a Ruby bump.
+gem "web-push", "~> 3.1"
+gem "openssl", "4.0.0"
+
 # Use Tailwind CSS [https://github.com/rails/tailwindcss-rails]
 gem "tailwindcss-rails"
 

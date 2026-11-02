@@ -13,6 +13,7 @@ class BuildsController < ApplicationController
     results = @build.effective_results
                         .includes(:test_case, { run: :project }, attachments_attachments: :blob)
     @groups = TestResult.grouped_for_display(results)
+    @open_result_id = @groups.flat_map(&:last).find { |result| result.id.to_s == params[:result].to_s }&.id
     @verdicts = TestCaseVerdict.for_cases(@build.effective_results.select(:test_case_id),
                                           branch: @build.branch, default_branch: @build.comparison_branch)
     load_error_groups

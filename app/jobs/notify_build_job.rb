@@ -24,5 +24,7 @@ class NotifyBuildJob < ApplicationJob
     rescue ActiveRecord::RecordNotUnique
       next
     end
+
+    PushNotifyJob.perform_later(build.id, attempt)
   end
 end
