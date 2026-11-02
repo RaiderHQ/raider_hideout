@@ -602,6 +602,7 @@ components:
       description: >-
         A recorded test's steps and the failed one. Present only when raider_reporter could map the failure
         to the steps recorded in Raider Desktop; absent for code tests and edited recorded tests.
+        Up to 200 items of up to 500 characters each, so one failure can carry about 100 KB of steps.
       type: object
       additionalProperties: false
       required: [items, failed]

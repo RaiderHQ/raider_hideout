@@ -37,6 +37,16 @@ RSpec.describe "Failed steps display", type: :request do
     expect(testids(doc, "step-not-run").text).to include("See \"Welcome\"", "Not run")
   end
 
+  it "names each step's state for screen readers" do
+    failing_result(steps: { "items" => items, "failed" => 2 })
+    doc = page
+
+    expect(testids(doc, "step-passed").map { |step| step.css(".sr-only").text }).to eq([ "Passed:", "Passed:" ])
+    expect(testids(doc, "step-failed").first.css(".sr-only").text).to eq("Failed:")
+    expect(testids(doc, "step-failed").first["aria-current"]).to eq("step")
+    expect(doc.css("ol[aria-label=Steps]").size).to eq(1)
+  end
+
   it "says when it couldn't tell which step failed" do
     failing_result(steps: { "items" => items, "failed" => nil })
     doc = page
