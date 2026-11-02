@@ -1,7 +1,7 @@
 // Snapshots are untrusted HTML. Re-strip them here (the browser never trusts the
 // recorder) and show them in a sandboxed, script-less frame.
 const CSP = "default-src 'none'; style-src 'unsafe-inline'; img-src data:"
-const REMOVE = "script, base, iframe, object, embed, frame, frameset, meta[http-equiv]"
+const REMOVE = "script, base, iframe, object, embed, frame, frameset, template, meta[http-equiv]"
 const URL_ATTRIBUTES = ["href", "src", "action", "formaction"]
 
 export function snapshotDocument(html) {
@@ -11,7 +11,7 @@ export function snapshotDocument(html) {
     for (const attr of Array.from(node.attributes)) {
       const name = attr.name.toLowerCase()
       const value = attr.value.replace(/[\u0000- ]/g, "").toLowerCase()
-      if (name.startsWith("on") || (URL_ATTRIBUTES.includes(name) && value.startsWith("javascript:"))) {
+      if (name.startsWith("on") || name === "shadowrootmode" || name === "shadowroot" || (URL_ATTRIBUTES.includes(name) && value.startsWith("javascript:"))) {
         node.removeAttribute(attr.name)
       }
     }

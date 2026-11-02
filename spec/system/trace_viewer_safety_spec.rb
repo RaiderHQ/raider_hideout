@@ -101,6 +101,15 @@ RSpec.describe "Trace viewer zip safety", type: :system do
       end
     end
 
+    it "removes templates so declarative shadow DOM cannot revive stripped markup" do
+      html = '<p>hi</p><template shadowrootmode="open"><img src=x onerror="window.top.__pwned=4"></template>'
+      open_trace(snapshot_zip(html))
+      srcdoc = find("[data-testid=trace-snapshot]")[:srcdoc]
+      expect(srcdoc).not_to include("<template")
+      expect(srcdoc).not_to include("onerror")
+      expect(page.evaluate_script("window.__pwned")).to be_nil
+    end
+
     it "keeps the page usable when the snapshot entry cannot be read" do
       trace = JSON.generate(format: "raider-trace", version: 1,
                             steps: [{ index: 1, action: "click", snapshot: "steps/0001.html" }])
