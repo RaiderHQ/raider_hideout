@@ -1,5 +1,6 @@
 import { Controller } from "@hotwired/stimulus"
 import { renderSnapshot } from "trace/snapshot"
+import { notCaptured, renderConsole, renderDetail, renderNetwork, renderNotices, renderTimeline, showScreenshot } from "trace/panels"
 import { MAX_ZIP_BYTES, TraceError, readZip, loadTrace } from "trace/zip_reader"
 
 // Fetches the trace zip, reads it in the browser and hands it to the renderer.
@@ -19,6 +20,7 @@ export default class extends Controller {
 
   disconnect() {
     this.abort?.abort()
+    if (this.blobUrl) URL.revokeObjectURL(this.blobUrl)
   }
 
   async download() {
@@ -41,35 +43,87 @@ export default class extends Controller {
     return await new Blob(chunks).arrayBuffer()
   }
 
-  // Placeholder timeline; the real renderer replaces this.
-  async render({ index, entry }) {
-    const timeline = this.element.querySelector("#trace-timeline")
-    for (const step of index.steps || []) {
-      const item = document.createElement("li")
-      item.dataset.testid = "trace-step"
-      item.textContent = String(step.action ?? "")
-      timeline.append(item)
-    }
-    await this.showSnapshot(entry, (index.steps || [])[0])
+  async render(trace) {
+    this.trace = trace
+    this.steps = Array.isArray(trace.index.steps) ? trace.index.steps : []
+    this.showAll = { network: false, console: false }
+    renderNotices(this.target("notices"), trace.index.truncated)
+    this.showTab("network")
+    const first = this.steps.find((step) => step.status === "failed") || this.steps[0]
+    if (first) await this.select(first.index)
+    else this.renderTabs()
   }
 
-  // Minimal selection until the detail panel lands: the first step.
-  async showSnapshot(entry, step) {
-    const name = step?.snapshot
-    const file = typeof name === "string" ? entry(name) : null
-    if (!file) return
+  async select(index) {
+    const step = this.steps.find((candidate) => candidate.index === index)
+    if (!step) return
+    this.selected = index
+    const token = (this.token = (this.token || 0) + 1)
+    if (this.blobUrl) URL.revokeObjectURL(this.blobUrl)
+    this.blobUrl = null
+    this.target("notices").querySelector("[data-step-error]")?.remove()
+    renderTimeline(this.target("timeline"), this.steps, index, (next) => this.select(next))
+    this.renderTabs()
+    const slots = renderDetail(this.target("detail"), step)
+    const current = () => token === this.token && !this.abort.signal.aborted
+    await Promise.all([
+      this.load(step.screenshot, slots.screenshot, async (bytes, name) => {
+        if (!current()) return
+        const type = name.endsWith(".png") ? "image/png" : "image/jpeg"
+        this.blobUrl = URL.createObjectURL(new Blob([bytes], { type }))
+        const at = this.steps.indexOf(step)
+        showScreenshot(slots.screenshot, this.blobUrl, step, this.steps[at - 1], this.trace.index.device_pixel_ratio)
+      }, current),
+      this.load(step.snapshot, slots.snapshot, (bytes, name) => current() && renderSnapshot(slots.snapshot, bytes, name), current)
+    ])
+  }
+
+  // Reads one step entry; a failure is reported as a notice and leaves the rest usable.
+  async load(name, slot, show, current) {
+    const file = typeof name === "string" ? this.trace.entry(name) : null
+    if (!file) return notCaptured(slot)
     try {
-      renderSnapshot(this.element.querySelector("#trace-detail"), await file.read(), name)
+      await show(await file.read(), name)
     } catch (error) {
-      if (this.abort.signal.aborted) return
-      this.showError(error instanceof TraceError ? error.message : "This trace can't be opened: snapshot unreadable")
+      if (!current()) return
+      notCaptured(slot)
+      const message = error instanceof TraceError ? error.message : new TraceError("corrupt zip").message
+      const notice = document.createElement("p")
+      notice.dataset.testid = "trace-error"
+      notice.dataset.stepError = ""
+      notice.textContent = message
+      this.target("notices").append(notice)
     }
+  }
+
+  renderTabs() {
+    const toggle = (key) => (checked) => {
+      this.showAll[key] = checked
+      this.renderTabs()
+    }
+    renderNetwork(this.target("network"), this.trace.index, this.selected, this.showAll.network, toggle("network"))
+    renderConsole(this.target("console"), this.trace.index, this.selected, this.showAll.console, toggle("console"))
+  }
+
+  showTab(name) {
+    for (const key of ["network", "console"]) {
+      this.target(key).hidden = key !== name
+      this.element.querySelector(`[data-tab=${key}]`)?.setAttribute("aria-selected", String(key === name))
+    }
+  }
+
+  tab(event) {
+    this.showTab(event.currentTarget.dataset.tab)
+  }
+
+  target(name) {
+    return this.element.querySelector(`#trace-${name}`)
   }
 
   showError(message) {
     const notice = document.createElement("p")
     notice.dataset.testid = "trace-error"
     notice.textContent = message
-    this.element.querySelector("#trace-notices").replaceChildren(notice)
+    this.target("notices").replaceChildren(notice)
   }
 }

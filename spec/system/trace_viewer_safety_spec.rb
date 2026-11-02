@@ -26,20 +26,13 @@ RSpec.describe "Trace viewer zip safety", type: :system do
 
   def entry(name, data = "x", **opts) = { name: name, data: data, method: :stored }.merge(opts)
 
-  def trace_json_of(bytes)
-    Dir.mktmpdir do |dir|
-      File.binwrite("#{dir}/t.zip", bytes)
-      IO.popen(["unzip", "-p", "#{dir}/t.zip", "trace.json"], &:read)
-    end
-  end
-
   def expect_refused
     expect(page).to have_css("[data-testid=trace-error]", text: /\AThis trace can't be opened/)
   end
 
   it "opens the fixture with one step per trace.json step" do
     bytes = file_fixture("trace-v1.zip").binread
-    steps = JSON.parse(trace_json_of(bytes))["steps"].size
+    steps = JSON.parse(file_fixture("trace-v1.json").read)["steps"].size
     open_trace(bytes)
     expect(page).to have_css("#trace-timeline [data-testid=trace-step]", count: steps)
   end
