@@ -139,6 +139,21 @@ RSpec.describe "Phone layout", type: :system do
       end
     end
 
+    it "keeps the message at full card width on desktop when there is a video and no screenshot" do
+      failed.attachments.detect { |a| a.content_type.start_with?("image/") }.purge
+      visit project_build_path(project, build)
+      widths = page.evaluate_script(<<~JS)
+        (function () {
+          var card = document.getElementById("test_result_#{failed.id}");
+          return [card.querySelector("pre").parentElement.getBoundingClientRect().width,
+                  card.querySelector("details[data-testid=stack-trace]").getBoundingClientRect().width,
+                  card.children[1].getBoundingClientRect().width - 32];
+        })()
+      JS
+      expect(widths[0]).to be_within(2).of(widths[2])
+      expect(widths[1]).to be_within(2).of(widths[2])
+    end
+
     it "opens and scrolls to the card named by ?result=" do
       target_case = create(:test_case, project: project, full_name: "Zebra last", file_path: "spec/z_spec.rb")
       25.times { |i| create(:test_result, run: runs.first, status: "passed", test_case: create(:test_case, project: project, file_path: "spec/a#{i}_spec.rb")) }

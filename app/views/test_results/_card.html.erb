@@ -9,7 +9,7 @@
     <% if local_assigns[:shard_label].present? %><span data-shard-tag class="text-[11px] font-mono px-2 py-0.5 rounded-sm bg-neutral-lt text-neutral-dk"><%= shard_label %></span><% end %>
     <% if local_assigns[:tag] %><%= failure_tag_pill(tag) %>
     <% elsif local_assigns[:verdict]&.flaky %><%= status_pill("flaky") %><% end %>
-    <% if local_assigns[:group] %><%= link_to "Group · #{group_size} tests", project_error_path(result.run.project, group), data: { testid: "group-pill" }, class: "inline-flex items-center min-h-11 md:min-h-0 text-[11px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-md flex-shrink-0 bg-ruby-sub text-ruby" %><% end %>
+    <% if local_assigns[:group] %><%= link_to "Group · #{group_size} tests", project_error_path(result.run.project, group), data: { testid: "group-pill" }, class: "#{UiHelper::PILL_BASE.sub("inline-block", "inline-flex items-center")} min-h-11 md:min-h-0 bg-ruby-sub text-ruby" %><% end %>
     <% if result.status == "quarantined" %><%= status_pill("quarantined") %><% end %>
     <% if result.attempts > 1 %><span class="text-xs text-neutral-mid"><%= result.attempts %> attempts</span><% end %>
     <span class="text-xs text-neutral-mid"><%= result.duration_ms %> ms</span>
