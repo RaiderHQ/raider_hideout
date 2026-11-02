@@ -102,6 +102,16 @@ RSpec.describe NotifyBuildJob do
       expect(rerun_build.reload.total_count).to eq(2)
       expect(channel.notification_deliveries.where(attempt: 2).count).to eq(1)
     end
+
+    it "logs a run that arrives after its attempt was announced" do
+      add_run(2, "passed", at: 5.minutes.ago)
+      rerun_build.recompute!
+      described_class.perform_now(rerun_build.id, 2)
+      allow(Rails.logger).to receive(:info)
+      described_class.perform_now(rerun_build.id, 2)
+      expect(Rails.logger).to have_received(:info)
+        .with("[notify] build #{rerun_build.id} attempt 2: late run after announcement, no new delivery")
+    end
   end
 
   describe "attempt 2 of a build without a ci_run_key (Azure) or without attempt 1" do

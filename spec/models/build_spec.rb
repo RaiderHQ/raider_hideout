@@ -294,11 +294,17 @@ RSpec.describe Build do
       expect(b.reload.first_attempt).to eq(2)
     end
 
-    it "is false below the failed-run floor, inside the quiet period, and true after it" do
+    it "is false below the failed-run floor and true once it is met" do
       analysed_run(1)
       analysed_run(1)
-      analysed_run(2, at: Time.current)
+      analysed_run(2, at: 3.minutes.ago)
       expect(b.reload.attempt_ready?(2)).to be(false)
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(true)
+    end
+
+    it "is false inside the quiet period and true after it" do
+      analysed_run(1)
       analysed_run(2, at: Time.current)
       expect(b.reload.attempt_ready?(2)).to be(false)
       travel(Build::ATTEMPT_QUIET_PERIOD + 1.second) do

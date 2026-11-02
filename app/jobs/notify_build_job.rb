@@ -5,7 +5,12 @@ class NotifyBuildJob < ApplicationJob
     build = Build.find_by(id: build_id)
     return unless build&.attempt_ready?(attempt)
 
-    Builds::Gate.evaluate!(build, attempt: attempt) if build.rerun_attempt?(attempt)
+    if build.rerun_attempt?(attempt)
+      Builds::Gate.evaluate!(build, attempt: attempt)
+      if build.notification_deliveries.where(kind: "build", attempt: attempt).exists?
+        Rails.logger.info("[notify] build #{build.id} attempt #{attempt}: late run after announcement, no new delivery")
+      end
+    end
 
     build.project.notification_channels.where(enabled: true).find_each do |channel|
       next unless Notifications::BranchFilter.match?(channel, build)
