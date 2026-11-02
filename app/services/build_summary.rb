@@ -145,7 +145,7 @@ class BuildSummary
   def waiting_line
     return unless state == "incomplete" && @build.expected_shards
 
-    missing = [ @build.expected_shards - @build.first_attempt_runs.size, 1 ].max
+    missing = [ @build.expected_shards - @build.received_shard_count, 1 ].max
     "Waiting for #{missing} more #{'shard'.pluralize(missing)}"
   end
 

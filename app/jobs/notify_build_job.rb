@@ -6,6 +6,7 @@ class NotifyBuildJob < ApplicationJob
     return unless build&.attempt_ready?(attempt)
 
     if build.rerun_attempt?(attempt)
+      Builds::Baseline.assign!(build)
       Builds::Gate.evaluate!(build, attempt: attempt)
       if build.notification_deliveries.where(kind: "build", attempt: attempt).exists?
         Rails.logger.info("[notify] build #{build.id} attempt #{attempt}: late run after announcement, no new delivery")

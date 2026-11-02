@@ -273,6 +273,7 @@ RSpec.describe FlakinessJob do
       freeze_time do
         expect { described_class.perform_now(run.id) }
           .to have_enqueued_job(NotifyBuildJob).with(gh_build.id, 2).at(Build::ATTEMPT_QUIET_PERIOD.from_now + 5.seconds)
+          .and have_enqueued_job(NotifyBuildJob).with(gh_build.id, 2).at(Build::ATTEMPT_FLOOR_FALLBACK.from_now + 5.seconds)
       end
       expect(gh_build.reload.baseline_assigned_at).to eq(baseline_at)
     end

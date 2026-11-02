@@ -10,7 +10,7 @@
       · <%= time_ago_in_words(build.created_at) %> ago
     </p>
   <% end %>
-  <% if build.ci_run_key.present? && build.latest_attempt > 1 %>
+  <% if build.rerun_attempt?(build.latest_attempt) %>
     <span class="text-[11px] px-2 py-0.5 rounded-sm bg-ruby-sub text-ruby flex-shrink-0">attempt <%= build.latest_attempt %></span>
   <% end %>
   <% pr_url = pull_request_url(build) %>

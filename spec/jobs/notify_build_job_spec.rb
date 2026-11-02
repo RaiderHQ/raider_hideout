@@ -89,6 +89,18 @@ RSpec.describe NotifyBuildJob do
       expect(described_class).not_to have_been_enqueued
     end
 
+    it "assigns the baseline before the gate when attempt 1 never became ready" do
+      rerun_build.update_columns(baseline_assigned_at: nil, gate_attempt: nil, gate_evaluated_at: nil)
+      add_run(2, "passed", at: 5.minutes.ago)
+      rerun_build.recompute!
+      order = []
+      allow(Builds::Baseline).to receive(:assign!).and_wrap_original { |m, *a| order << :baseline; m.call(*a) }
+      allow(Builds::Gate).to receive(:evaluate!).and_wrap_original { |m, *a, **k| order << :gate; m.call(*a, **k) }
+      described_class.perform_now(rerun_build.id, 2)
+      expect(order.first(2)).to eq(%i[baseline gate])
+      expect(rerun_build.reload.baseline_assigned_at).to be_present
+    end
+
     it "updates counts but sends no second delivery for a late attempt-2 run" do
       add_run(2, "passed", at: 5.minutes.ago)
       rerun_build.recompute!

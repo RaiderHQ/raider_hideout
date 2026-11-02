@@ -15,6 +15,9 @@ class FlakinessJob < ApplicationJob
     if build.rerun_attempt?(run.attempt)
       # Each analysed re-run run schedules its own check; the one after the last quiet period notifies.
       NotifyBuildJob.set(wait: Build::ATTEMPT_QUIET_PERIOD + 5.seconds).perform_later(build.id, run.attempt)
+      NotifyBuildJob.set(wait: Build::ATTEMPT_FLOOR_FALLBACK + 5.seconds).perform_later(build.id, run.attempt)
+      # A re-run can complete the build (a crashed shard re-uploaded): the first attempt then notifies too.
+      notify_first_attempt(build) if build.gate_attempt.nil? && build.ready_to_notify?
       return
     end
     return unless build.ready_to_notify?
@@ -25,6 +28,12 @@ class FlakinessJob < ApplicationJob
   end
 
   private
+
+  def notify_first_attempt(build)
+    Builds::Baseline.assign!(build)
+    Builds::Gate.evaluate!(build, attempt: build.first_attempt)
+    NotifyBuildJob.perform_later(build.id, build.first_attempt)
+  end
 
   # Writes the verdict for the run's branch only; a run without a branch writes none.
   def update(test_case, run)

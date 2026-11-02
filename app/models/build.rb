@@ -6,6 +6,9 @@ class Build < ApplicationRecord
 
   # Time attempt-N runs must stay quiet before their notification, so a re-run's late shards land first.
   ATTEMPT_QUIET_PERIOD = 2.minutes
+  # A re-run attempt below its failed-run floor (single "Re-run job") is ready after this much quiet.
+  # Stays well under the reporter gate's 600 s default timeout.
+  ATTEMPT_FLOOR_FALLBACK = 5.minutes
 
   validates :build_key, presence: true, uniqueness: { scope: :project_id }
 
@@ -44,7 +47,7 @@ class Build < ApplicationRecord
 
   def mark_superseded!
     scope = TestResult.where(run_id: runs.select(:id))
-    if runs.where("attempt > 1").exists?
+    if runs.distinct.count(:attempt) > 1
       scope.update_all("superseded = #{SUPERSEDED_SQL}")
     else
       scope.where(superseded: true).update_all(superseded: false)
@@ -91,7 +94,8 @@ class Build < ApplicationRecord
     )
     total, passed, failed, skipped, pending, quarantined, started, finished = totals
     first_runs = first_attempt_runs
-    run_count, shard_total = first_runs.pick(Arel.sql("COUNT(*)"), Arel.sql("MAX(shard_total)"))
+    shard_total = first_runs.maximum(:shard_total)
+    run_count = received_shard_count
     dropped = TestResult.where(run_id: runs.select(:id), superseded: true).group(:status).count
     total -= dropped.values.sum
     passed -= dropped.fetch("passed", 0)
@@ -144,8 +148,19 @@ class Build < ApplicationRecord
     runs.exists? && !runs.where(results_purged_at: nil).exists?
   end
 
+  # Shards received: first-attempt runs, plus later-attempt runs whose non-nil shard_label
+  # never appeared in the first attempt (a re-run filling a shard that crashed before uploading).
+  # Unlabeled later runs cannot be matched to a missing shard, so they do not count.
+  def received_shard_count
+    rows = runs.loaded? ? runs.map { |run| [ run.attempt, run.shard_label ] } : runs.pluck(:attempt, :shard_label)
+    first = rows.map(&:first).min || 1
+    first_rows, later_rows = rows.partition { |attempt, _| attempt == first }
+    seen = first_rows.filter_map(&:last).to_set
+    first_rows.size + (later_rows.filter_map(&:last).uniq.reject { |label| seen.include?(label) }).size
+  end
+
   def complete?
-    !expected_shards || first_attempt_run_count >= expected_shards
+    !expected_shards || received_shard_count >= expected_shards
   end
 
   # Every first-attempt run analysed; later attempts notify on their own (attempt_ready?).
@@ -162,21 +177,24 @@ class Build < ApplicationRecord
   end
 
   # A GitHub re-run of a build whose earlier attempt is present: notified separately, after a quiet period.
+  # The one guard for "is this attempt a re-run": readiness, the page and the message all use it.
   def rerun_attempt?(attempt)
     ci_run_key.present? && attempt > first_attempt
   end
 
   # The first attempt follows ready_to_notify?. A later attempt is ready once its runs cover the
-  # previous attempt's failed runs, are all analysed, and have been quiet for ATTEMPT_QUIET_PERIOD.
+  # previous attempt's failed runs, are all analysed, and have been quiet for ATTEMPT_QUIET_PERIOD;
+  # below that floor it is ready once all are analysed and quiet for ATTEMPT_FLOOR_FALLBACK.
   def attempt_ready?(attempt)
-    return ready_to_notify? if attempt <= first_attempt
+    return ready_to_notify? unless rerun_attempt?(attempt)
 
     pair = runs.loaded? ? runs.to_a : runs.where(attempt: [ attempt - 1, attempt ]).to_a
     mine = pair.select { |run| run.attempt == attempt }
     floor = [ 1, pair.count { |run| run.attempt == attempt - 1 && run.status == "failed" } ].max
-    return false if mine.size < floor || mine.any? { |run| run.flakiness_analyzed_at.nil? }
+    return false if mine.empty? || mine.any? { |run| run.flakiness_analyzed_at.nil? }
 
-    mine.map(&:flakiness_analyzed_at).max <= ATTEMPT_QUIET_PERIOD.ago
+    newest = mine.map(&:flakiness_analyzed_at).max
+    (mine.size >= floor && newest <= ATTEMPT_QUIET_PERIOD.ago) || newest <= ATTEMPT_FLOOR_FALLBACK.ago
   end
 
   def gate_report
@@ -205,18 +223,10 @@ class Build < ApplicationRecord
   def shard_progress
     return nil unless expected_shards
 
-    "#{first_attempt_run_count}/#{expected_shards}"
+    "#{received_shard_count}/#{expected_shards}"
   end
 
   private
-
-  # Counts without a query when the runs are already loaded (build lists, build page).
-  def first_attempt_run_count
-    return first_attempt_runs.count unless runs.loaded?
-
-    first = runs.map(&:attempt).min || 1
-    runs.count { |run| run.attempt == first }
-  end
 
   def recomputed_status(failed, run_count, expected)
     if failed.positive? then "failed"

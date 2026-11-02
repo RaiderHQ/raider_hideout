@@ -109,6 +109,40 @@ RSpec.describe Build do
       expect(build_record).to have_attributes(total_count: 1, failed_count: 0, passed_count: 1, status: "passed")
     end
 
+    it "skips the supersession UPDATE when every run is the same attempt (Azure stage retry)" do
+      attempt_run(2, "test#1", { case_x => "failed" })
+      queries = []
+      sub = ActiveSupport::Notifications.subscribe("sql.active_record") { |*, pl| queries << pl[:sql] }
+      build_record.mark_superseded!
+      ActiveSupport::Notifications.unsubscribe(sub)
+      expect(queries.grep(/EXISTS/)).to be_empty
+    end
+
+    it "lets a re-run fill a shard that never uploaded in attempt 1" do
+      b = create(:build, project: project, ci_run_key: "gh:r:9", expected_shards: 3)
+      [ [ 1, "test#1" ], [ 1, "test#2" ], [ 2, "test#3" ] ].each_with_index do |(attempt, label), i|
+        run = create(:run, project: project, build: b, attempt: attempt, shard_label: label, status: "passed",
+                           total_count: 1, passed_count: 1, flakiness_analyzed_at: Time.current)
+        create(:test_result, run: run, test_case: create(:test_case, project: project, full_name: "T#{i}"), status: "passed")
+        b.reload
+        expect(b).not_to be_complete if i < 2
+      end
+      b.recompute!
+      expect(b).to be_complete
+      expect(b.status).not_to eq("incomplete")
+      expect(b.shard_progress).to eq("3/3")
+      expect(b.attempt_ready?(1)).to be(true)
+    end
+
+    it "does not count unlabeled or already-seen later runs toward completeness" do
+      b = create(:build, project: project, ci_run_key: "gh:r:10", expected_shards: 3)
+      create(:run, project: project, build: b, attempt: 1, shard_label: "test#1")
+      create(:run, project: project, build: b, attempt: 1, shard_label: "test#2")
+      create(:run, project: project, build: b, attempt: 2, shard_label: "test#2")
+      create(:run, project: project, build: b, attempt: 2, shard_label: nil)
+      expect(b.reload.shard_progress).to eq("2/3")
+    end
+
     it "keeps other matrix legs effective" do
       attempt_run(1, "test#1", { case_x => "passed" })
       attempt_run(1, "test#2", { case_x => "failed" })
@@ -341,6 +375,21 @@ RSpec.describe Build do
       expect(b.reload.attempt_ready?(2)).to be(false)
       analysed_run(2, at: 3.minutes.ago)
       expect(b.reload.attempt_ready?(2)).to be(true)
+    end
+
+    it "below the floor is false within the fallback and true after it" do
+      analysed_run(1)
+      analysed_run(1)
+      analysed_run(2, at: 3.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(false)
+      b.runs.where(attempt: 2).update_all(flakiness_analyzed_at: 6.minutes.ago)
+      expect(b.reload.attempt_ready?(2)).to be(true)
+    end
+
+    it "uses one guard: a build whose only attempt is 2 is not a re-run" do
+      analysed_run(2)
+      expect(b.reload.rerun_attempt?(2)).to be(false)
+      expect(b.attempt_ready?(2)).to eq(b.ready_to_notify?)
     end
 
     it "is false inside the quiet period and true after it" do
