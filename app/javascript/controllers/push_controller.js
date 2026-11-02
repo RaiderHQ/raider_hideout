@@ -18,6 +18,9 @@ export default class extends Controller {
         return this.show("Notifications are blocked for this site in your browser settings.")
       }
       const registration = await navigator.serviceWorker.ready
+      // A subscription made with a different key (rotated or changed VAPID pair) makes subscribe() throw, so always replace it.
+      const existing = await registration.pushManager.getSubscription()
+      if (existing) await existing.unsubscribe()
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(this.publicKeyValue)

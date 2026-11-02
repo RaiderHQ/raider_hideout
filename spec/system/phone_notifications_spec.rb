@@ -17,19 +17,23 @@ RSpec.describe "Phone notifications", type: :system do
     ActionController::Base.allow_forgery_protection = original
   end
 
-  def fake_push_service(permission: "granted")
+  def fake_push_service(permission: "granted", stale: false)
     source = <<~JS
       (() => {
         Object.defineProperty(Notification, "requestPermission", { value: () => Promise.resolve(#{permission.to_json}), configurable: true });
         const bytes = (n, first) => { const a = new Uint8Array(n).map((_, i) => i + 1); if (first !== undefined) a[0] = first; return a; };
         const b64url = (a) => btoa(String.fromCharCode(...a)).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/, "");
+        window.__staleUnsubscribed = false;
+        PushManager.prototype.getSubscription = function () {
+          return Promise.resolve(#{stale} ? { unsubscribe: () => { window.__staleUnsubscribed = true; return Promise.resolve(true); } } : null);
+        };
         PushManager.prototype.subscribe = function (options) {
           window.__applicationServerKey = Array.from(new Uint8Array(options.applicationServerKey));
           window.__userVisibleOnly = options.userVisibleOnly;
           return Promise.resolve({ toJSON: () => ({
             endpoint: "https://fcm.googleapis.com/fcm/send/system-spec-device",
             expirationTime: null,
-            keys: { p256dh: b64url(bytes(65, 4)), auth: b64url(bytes(16)) }
+            keys: { p256dh: #{valid_p256dh.to_json}, auth: b64url(bytes(16)) }
           }) });
         };
       })();
@@ -86,6 +90,16 @@ RSpec.describe "Phone notifications", type: :system do
       expect(page).to have_content("No devices yet.")
       expect(PushSubscription.count).to eq(0)
     end
+  end
+
+  it "replaces a stale browser subscription before subscribing" do
+    fake_push_service(stale: true)
+    sign_in_as(user)
+    visit phone_notifications_path
+    click_on "Turn on notifications"
+    expect(page).to have_css("li", text: "Remove")
+    expect(page.evaluate_script("window.__staleUnsubscribed")).to be(true)
+    expect(PushSubscription.sole.endpoint).to eq("https://fcm.googleapis.com/fcm/send/system-spec-device")
   end
 
   it "says so when notifications are blocked and stores nothing" do
