@@ -6,7 +6,7 @@ RSpec.describe "Branding", type: :request do
     expect(response.body).to include("<title>Raider Hideout</title>", "Sign in to Raider Hideout")
   end
 
-  # The manifest has no route yet (the PWA routes are off), so check the template.
+  # Checks the template source; spec/requests/pwa_spec.rb covers the served manifest.
   it "names the app in the PWA manifest template" do
     manifest = Rails.root.join("app/views/pwa/manifest.json.erb").read
     expect(manifest).to include('"name": "Raider Hideout"', '"short_name": "Hideout"')

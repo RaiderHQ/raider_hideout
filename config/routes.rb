@@ -64,6 +64,9 @@ Rails.application.routes.draw do
   post "mcp", to: "mcp#create"
   match "mcp", to: "mcp#method_not_allowed", via: %i[get delete]
   mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
+  get "manifest.json" => "pwa#manifest", as: :pwa_manifest, defaults: { format: :json }
+  get "service-worker" => "pwa#service_worker", as: :pwa_service_worker, defaults: { format: :js }
+  get "offline", to: "offline#show"
   root "projects#index"
   get "up" => "rails/health#show", as: :rails_health_check
 end

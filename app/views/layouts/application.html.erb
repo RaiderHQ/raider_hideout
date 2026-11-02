@@ -6,6 +6,8 @@
     <meta name="theme-color" content="#C14420">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
+    <%= tag.link rel: "manifest", href: pwa_manifest_path %>
+    <%= tag.link rel: "apple-touch-icon", href: "/icon-192.png" %>
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
