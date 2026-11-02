@@ -565,4 +565,25 @@ RSpec.describe Ingest do
       expect(run.build.reload).to have_attributes(status: "failed", failed_count: 1, quarantined_count: 1)
     end
   end
+
+  describe "recorded steps" do
+    let(:data) { JSON.parse(file_fixture("payloads/failed_steps.json").read) }
+
+    it "stores the steps of a failed result" do
+      run = ingest(data).run
+      expect(run.test_results.find_by(status: "failed").steps).to eq(data["results"].first["steps"])
+    end
+
+    it "does not store steps on a passed result" do
+      run = ingest(data).run
+      expect(run.test_results.find_by(status: "passed").steps).to be_nil
+    end
+
+    it "keeps the run when steps are malformed" do
+      data["results"].first["steps"] = { "items" => "nope", "failed" => 0 }
+      result = ingest(data)
+      expect(result.created).to be(true)
+      expect(result.run.test_results.find_by(status: "failed").steps).to be_nil
+    end
+  end
 end

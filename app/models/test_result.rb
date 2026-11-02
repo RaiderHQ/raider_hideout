@@ -1,6 +1,8 @@
 class TestResult < ApplicationRecord
   # Results whose failure details are kept and grouped (spec §5.1).
   FAILING_STATUSES = %w[failed quarantined].freeze
+  STEPS_LIMIT = 200
+  STEP_TITLE_LIMIT = 500
 
   belongs_to :run
   belongs_to :test_case
@@ -16,6 +18,21 @@ class TestResult < ApplicationRecord
 
   def self.normalize_tag(tag)
     tag.to_s.downcase.delete("|").strip
+  end
+
+  # A recorded test's steps with the failed one's 0-based index, or nil (failed-step spec §3):
+  # anything malformed is dropped, never rejected.
+  def self.normalized_steps(value)
+    return unless value.is_a?(Hash) && value.key?("failed")
+
+    items = value["items"]
+    return unless items.is_a?(Array) && items.size.between?(1, STEPS_LIMIT)
+    return unless items.all? { |item| item.is_a?(Hash) && item["id"].is_a?(String) && item["id"].present? && item["title"].is_a?(String) }
+
+    failed = value["failed"]
+    return unless failed.nil? || (failed.is_a?(Integer) && failed.between?(0, items.size - 1))
+
+    { "items" => items.map { |item| { "id" => item["id"], "title" => item["title"].first(STEP_TITLE_LIMIT) } }, "failed" => failed }
   end
 
   # Failed first, then quarantined, then the rest: files by their most urgent result, then path;

@@ -75,7 +75,7 @@ module Api
           line_number: test_case.line_number, status: result.status, exception_class: result.exception_class,
           message: clip(result.failure_message, FAILURE_MESSAGE_LIMIT), error_group_id: result.error_group_id,
           attempts: result.attempts, app_frame: result.app_frame.presence || Failures::Signature.fallback_frame(result.backtrace)
-        }
+        }.merge(result.steps.present? ? { steps: result.steps } : {})
       end
 
       def shards

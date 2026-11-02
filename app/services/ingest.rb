@@ -164,13 +164,15 @@ class Ingest
   def insert_results(run, results, case_ids)
     now = Time.current
     rows = results.map do |r|
-      failure = TestResult::FAILING_STATUSES.include?(r["status"]) ? (r["failure"] || {}) : {}
+      failing = TestResult::FAILING_STATUSES.include?(r["status"])
+      failure = failing ? (r["failure"] || {}) : {}
       attempts = [ r["attempts"].to_i, 1 ].max
       {
         run_id: run.id, test_case_id: case_ids.fetch(TestCase.key_for(r["file_path"], r["full_name"])),
         identifier: r["identifier"], status: r["status"], duration_ms: r["duration_ms"].to_i, attempts: attempts,
         retried_flaky: attempts > 1 && r["status"] == "passed", tags: r["tags"] || [],
         tags_text: TestResult.tags_text_for(r["tags"]), dropped_attachments: dropped_attachments(r),
+        steps: failing ? TestResult.normalized_steps(r["steps"]) : nil,
         failure_message: failure["message"], exception_class: failure["exception_class"],
         backtrace: Array(failure["backtrace"]).join("\n").presence, app_frame: stored_app_frame(failure["app_frame"]),
         created_at: now, updated_at: now
