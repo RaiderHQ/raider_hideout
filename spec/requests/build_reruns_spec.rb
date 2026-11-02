@@ -55,10 +55,11 @@ RSpec.describe "Build re-runs", type: :request do
     expect(flash[:notice]).to be_nil
   end
 
-  it "shows the guard copy on a second tap and calls GitHub once" do
+  it "shows the guard copy to a second member and calls GitHub once" do
     sign_in(users.fetch("member"))
     stub = stub_request(:post, url).to_return(status: 201, body: "")
     post_rerun
+    sign_in(users.fetch("admin"))
     post_rerun
     expect(stub).to have_been_requested.once
     expect(flash[:alert]).to match(/\AA re-run was already requested at \d\d:\d\d\.\z/)

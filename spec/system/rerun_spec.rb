@@ -36,7 +36,7 @@ RSpec.describe "Re-run failed", type: :system do
           visit project_build_path(project, build_record)
           expect(page).to have_button("Re-run failed", minimum: 2)
           if width
-            expect_tap_targets("form.button_to button")
+            expect_tap_targets("form.button_to button, button[form='build-rerun-form']")
             expect_no_horizontal_scroll
           end
           first(:button, "Re-run failed", match: :first).click
@@ -67,7 +67,7 @@ RSpec.describe "Re-run failed", type: :system do
     add_token
     sign_in_as(user_with("viewer"))
     visit project_build_path(project, build_record)
-    expect(page).to have_content(build_record.status.capitalize).or have_css("h1")
+    expect(page).to have_css("[data-testid=build-tile]", minimum: 1)
     expect(page).to have_no_button("Re-run failed")
   end
 

@@ -2,7 +2,7 @@
 <% case panel.state %>
 <% when :button %>
   <div class="mb-4" data-testid="rerun">
-    <%= button_to "Re-run failed", project_build_rerun_path(current_project, build), method: :post,
+    <%= button_to "Re-run failed", project_build_rerun_path(current_project, build), method: :post, form: { id: "build-rerun-form", data: { turbo: false } },
           class: "inline-flex items-center justify-center min-h-11 md:min-h-0 px-4 py-2 rounded-md bg-ruby text-neutral-wh text-sm font-medium cursor-pointer" %>
   </div>
 <% when :pending %>

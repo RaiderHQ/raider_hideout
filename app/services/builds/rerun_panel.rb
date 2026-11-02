@@ -20,9 +20,11 @@ module Builds
 
     def button? = state == :button
 
-    def pending = @pending
+    def pending = (state; @pending)
 
     def records
+      return [] unless @build.provider == "github_actions"
+
       @records ||= @build.reruns.includes(:user).order(created_at: :desc, id: :desc).limit(RECORD_LIMIT).to_a
     end
 
