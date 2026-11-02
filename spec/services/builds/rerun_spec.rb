@@ -54,6 +54,7 @@ RSpec.describe Builds::Rerun do
     409 => [ "rejected", "GitHub can't re-run this run now (it may still be running or be too old)." ],
     422 => [ "rejected", "GitHub can't re-run this run now (it may still be running or be too old)." ],
     429 => [ "failed", "GitHub is busy. Try again in a minute." ],
+    301 => [ "failed", "GitHub is busy. Try again in a minute." ],
     500 => [ "failed", "GitHub is busy. Try again in a minute." ]
   }.each do |code, (status, copy)|
     it "maps #{code} to #{status}" do
@@ -78,6 +79,29 @@ RSpec.describe Builds::Rerun do
     travel_to(11.minutes.from_now) { expect(call.rerun.message.length).to eq(200) }
   end
 
+  it "calls GitHub with no transaction open" do
+    baseline = ActiveRecord::Base.connection.open_transactions
+    seen = nil
+    stub_request(:post, url).to_return { seen = ActiveRecord::Base.connection.open_transactions; { status: 201 } }
+    call
+    expect(seen).to eq(baseline)
+  end
+
+  it "marks the row failed and re-raises on an unexpected error" do
+    allow_any_instance_of(Github::Client).to receive(:rerun_failed_jobs).and_raise(RuntimeError, "boom")
+    expect { call }.to raise_error(RuntimeError, "boom")
+    expect(build_record.reruns.last).to have_attributes(status: "failed", message: nil)
+  end
+
+  it "treats a malformed stored token as a rejected credential" do
+    access.update_column(:token, "garbage")
+    any_request
+    outcome = call
+    expect(outcome).to have_attributes(ok: false, message: "GitHub rejected the token. Replace it in CI access.")
+    expect(outcome.rerun).to have_attributes(status: "failed")
+    expect(any_request).not_to have_been_requested
+  end
+
   describe "guard" do
     before { stub_request(:post, url).to_return(status: 201) }
 
@@ -87,6 +111,12 @@ RSpec.describe Builds::Rerun do
       expect(outcome).to have_attributes(ok: false, rerun: nil)
       expect(outcome.message).to match(/\AA re-run was already requested at \d\d:\d\d\.\z/)
       expect(a_request(:post, url)).to have_been_made.once
+    end
+
+    it "blocks while a pending row exists" do
+      build_record.reruns.create!(attempt_before: 2, status: "pending")
+      expect(call).to have_attributes(ok: false, rerun: nil)
+      expect(a_request(:post, url)).not_to have_been_made
     end
 
     it "allows another after 10 minutes" do

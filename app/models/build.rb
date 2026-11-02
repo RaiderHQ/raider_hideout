@@ -207,9 +207,9 @@ class Build < ApplicationRecord
       project.ci_access.present?
   end
 
-  # The accepted re-run still in flight: no newer attempt has arrived and it is under 10 minutes old.
+  # A re-run still in flight (pending or accepted): no newer attempt has arrived and it is under 10 minutes old.
   def pending_rerun
-    reruns.where(status: "accepted", attempt_before: latest_attempt)
+    reruns.where(status: %w[pending accepted], attempt_before: latest_attempt)
           .where("created_at > ?", RERUN_GUARD.ago).order(:created_at).last
   end
 

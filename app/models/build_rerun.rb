@@ -2,7 +2,7 @@
 # at the time, and what GitHub answered. `message` is GitHub's JSON message, redacted and
 # truncated to 200 characters.
 class BuildRerun < ApplicationRecord
-  STATUSES = %w[accepted rejected failed].freeze
+  STATUSES = %w[pending accepted rejected failed].freeze
   MAX_MESSAGE = 200
 
   belongs_to :build

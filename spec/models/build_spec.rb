@@ -451,6 +451,10 @@ RSpec.describe Build, "re-run" do
       expect(rerun).to eq(build_record.pending_rerun)
     end
 
+    it "returns a pending one too" do
+      expect(rerun(status: "pending")).to eq(build_record.pending_rerun)
+    end
+
     it "ignores rejected, failed, old and superseded ones" do
       rerun(status: "rejected")
       rerun(status: "failed")

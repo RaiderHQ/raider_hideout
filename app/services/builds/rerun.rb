@@ -1,10 +1,10 @@
 module Builds
   # Asks GitHub to re-run the failed jobs of a build's workflow run and records the answer.
   #
-  # The guard check and the row insert share one transaction under `build.lock!`, and the
-  # GitHub call happens inside it: a second tap on a database that really locks (PostgreSQL)
-  # waits for the first, then sees its `accepted` row and answers with the guard copy instead
-  # of calling GitHub again. The call holds a row lock for at most the 10 s timeouts.
+  # Two steps so no database lock is held across the network. Step 1 is a short transaction
+  # under `build.lock!`: checks, the guard, and a `pending` row (which the guard counts, so a
+  # second tap sees it and does not call GitHub). Step 2 calls GitHub outside any transaction
+  # (SQLite's write lock is database-wide, and the call can take 10 s+) and then settles the row.
   class Rerun
     Outcome = Data.define(:ok, :message, :rerun)
 
@@ -28,13 +28,16 @@ module Builds
     end
 
     def call
-      @build.transaction do
+      rerun = nil
+      refusal = @build.transaction do
         @build.lock!
         check = precheck
         next check if check
 
-        request_rerun
+        rerun = @build.reruns.create!(user: @user, attempt_before: @build.latest_attempt, status: "pending")
+        nil
       end
+      refusal || request_rerun(rerun)
     end
 
     private
@@ -47,19 +50,23 @@ module Builds
       refuse("A re-run was already requested at #{pending.created_at.strftime('%H:%M')}.") if pending
     end
 
-    def request_rerun
+    def request_rerun(rerun)
       access = @build.project.ci_access
       owner, repo, run_id = Github::Repository.from_build(@build)
-      attempt_before = @build.latest_attempt
       response = Github::Client.new(access.token).rerun_failed_jobs(owner, repo, run_id)
       status = status_for(response.status)
       message = response.message && access.redact(response.message)[0, BuildRerun::MAX_MESSAGE]
       http = response.status.is_a?(Integer) ? response.status : nil
-      rerun = @build.reruns.create!(user: @user, attempt_before: attempt_before, status: status,
-                                    http_status: http, message: message)
-      Outcome.new(ok: status == "accepted", message: copy_for(response.status, attempt_before), rerun: rerun)
+      rerun.update!(status: status, http_status: http, message: message)
+      Outcome.new(ok: status == "accepted", message: copy_for(response.status, rerun.attempt_before), rerun: rerun)
     rescue Github::Client::Error
-      refuse(NOT_RERUNNABLE)
+      # Only a stored token that fails the format check lands here (rerunnable? already vetted
+      # the key), so it is a bad credential: same copy as GitHub's 401.
+      rerun.update!(status: "failed")
+      Outcome.new(ok: false, message: COPY.fetch(401), rerun: rerun)
+    rescue StandardError
+      rerun.update_columns(status: "failed", message: nil)
+      raise
     end
 
     def status_for(code)
