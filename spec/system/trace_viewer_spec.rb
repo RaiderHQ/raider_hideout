@@ -43,6 +43,12 @@ RSpec.describe "Trace viewer panels", type: :system do
       expect(page).to have_css("#trace-timeline [data-testid=trace-step]", text: 'Compared screenshot "cart"')
     end
 
+    it "omits the quotes when the name is missing" do
+      open_json("format" => "raider-trace", "version" => 1, "steps" => [ step.merge("name" => ""), step.merge("index" => 2, "status" => "failed", "name" => nil) ])
+      steps = all("#trace-timeline [data-testid=trace-step]").map(&:text)
+      expect(steps).to include(a_string_matching(/\ACompared screenshot\z/), a_string_matching(/\AScreenshot did not match\z/))
+    end
+
     it "renders a hostile name as text" do
       open_json("format" => "raider-trace", "version" => 1, "steps" => [ step.merge("name" => "<img src=x onerror=alert(1)>") ])
       expect(page).to have_css("#trace-timeline [data-testid=trace-step]", text: "<img src=x onerror=alert(1)>")

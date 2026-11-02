@@ -38,7 +38,7 @@ RSpec.describe ComparisonsHelper, type: :helper do
       result.reload
       block = helper.comparison_blocks(result).first
       expect(block.images.keys).to eq(%w[diff])
-      expect(block.images["diff"]).to eq(result.attachments.max_by { |a| [ a.created_at, a.id ] })
+      expect(block.images["diff"].download).to eq("two")
     end
 
     it "yields a block with nil status for an images-only name" do
@@ -57,6 +57,11 @@ RSpec.describe ComparisonsHelper, type: :helper do
       attach("comparison:home:diff")
       attach("comparison:home:expected")
       expect(helper.comparison_blocks(result.reload).first.images.keys).to eq(%w[expected diff])
+    end
+
+    it "defaults to Expected when only expected is present" do
+      attach("comparison:home:expected")
+      expect(helper.comparison_default_kind(helper.comparison_blocks(result.reload).first)).to eq("expected")
     end
 
     it "identifies comparison attachments" do

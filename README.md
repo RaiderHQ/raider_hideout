@@ -39,7 +39,7 @@ Warnings:
 
 ## Screenshot comparison
 
-A failed or quarantined test card shows a "Screenshot comparison" section when the reporter (ruby_raider 3.15 and later) sent comparison results: Expected, Actual and Diff tabs, the pixel counts and allowance, and any size change. The trace viewer names the step `Screenshot "home" did not match`. Comparison images follow `RETENTION_ATTACHMENT_DAYS` and their records follow `RETENTION_RESULT_DAYS`.
+A failed or quarantined test card shows a "Screenshot comparison" section when the reporter (raider_reporter 0.14 and later, in ruby_raider 3.15 projects) sent comparison results: Expected, Actual and Diff tabs, the pixel counts and allowance, and any size change. The trace viewer names the step `Screenshot "home" did not match`. Comparison images follow `RETENTION_ATTACHMENT_DAYS` and their records follow `RETENTION_RESULT_DAYS`.
 
 ## Explore
 

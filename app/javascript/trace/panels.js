@@ -37,7 +37,8 @@ function stepLabel(step) {
 export function stepText(step) {
   if (step.action === "match_screenshot") {
     const name = str(step.name)
-    return step.status === "failed" ? `Screenshot "${name}" did not match` : `Compared screenshot "${name}"`
+    const label = name ? ` "${name}"` : ""
+    return step.status === "failed" ? `Screenshot${label} did not match` : `Compared screenshot${label}`
   }
   return [str(step.action || step.kind), step.name, stepLabel(step)].filter(Boolean).join(" ")
 }

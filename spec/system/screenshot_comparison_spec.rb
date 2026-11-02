@@ -81,7 +81,9 @@ RSpec.describe "Screenshot comparison", type: :system do
 
   it "shows numbers without tabs when attachments were purged" do
     result = failed_result(kinds: [], screenshot: false)
+    run.update!(attachments_purged_at: Time.current)
     visit_build
+    expect(page).to have_css("#{card(result)} [data-testid=attachments-expired]")
     within(section(result)) do
       expect(page).to have_text("1,797,705 pixels (99.93%) differ")
       expect(page).not_to have_css("[role=tablist]")
@@ -107,13 +109,39 @@ RSpec.describe "Screenshot comparison", type: :system do
     end
   end
 
-  it "never renders baseline or an unrelated record-less name as HTML" do
-    evil = entry.merge("baseline" => "<script>alert(1)</script>")
-    result = failed_result(comparisons: [ evil ])
+  it "renders baseline and a record-less name as literal text" do
+    result = failed_result(comparisons: [ entry.merge("baseline" => "<b>x</b>.png") ])
+    attach(result, "comparison:a-b_c/d:actual", "1-actual.png")
     visit_build
-    expect(page).not_to have_text("alert(1)")
-    expect(page.html).not_to include("<script>alert(1)")
-    expect(page).to have_css(section(result), visible: :all)
+    within(section(result)) do
+      expect(page).to have_text("Baseline: <b>x</b>.png")
+      expect(page).to have_no_css("b")
+      expect(page).to have_css("p", text: "a-b_c/d")
+    end
+  end
+
+  it "navigates tabs with the arrow keys and labels the tablist" do
+    result = failed_result
+    visit_build
+    within(section(result)) do
+      expect(page).to have_css("[role=tablist][aria-label='Screenshots for home']")
+      expect(page).to have_css("[role=tabpanel]", count: 3, visible: :all)
+      find("[role=tab][aria-selected=true]", text: "Diff").send_keys(:right)
+      expect(page).to have_css("[role=tab][aria-selected=true]", text: "Expected")
+      tab = find("[role=tab][aria-selected=true]")
+      expect(page).to have_css("##{tab['aria-controls']}", visible: :visible)
+    end
+  end
+
+  it "wraps a long baseline-created name on a phone" do
+    long = "a" * 100
+    result = failed_result(kinds: %w[actual], comparisons: [ entry.merge("name" => long, "status" => "created") ])
+    attach(result, "comparison:#{long}:actual", "1-actual.png")
+    at_phone_width(360) do
+      visit_build
+      expect(page).to have_css("#{section(result)} p", text: long)
+      expect_no_horizontal_scroll
+    end
   end
 
   it "shows baseline created with an Actual link, and matched count" do
