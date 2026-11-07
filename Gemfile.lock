@@ -289,7 +289,7 @@ GEM
       rack (>= 1.3)
     rackup (2.3.1)
       rack (>= 3)
-    raider_reporter (0.11.0)
+    raider_reporter (0.13.0)
     rails (8.1.4)
       actioncable (= 8.1.4)
       actionmailbox (= 8.1.4)
@@ -509,7 +509,7 @@ DEPENDENCIES
   pg (~> 1.5)
   propshaft
   puma (>= 5.0)
-  raider_reporter (~> 0.7)
+  raider_reporter (~> 0.13)
   rails (~> 8.1.3)
   rspec-rails (~> 8.0)
   rubocop-rails-omakase
@@ -646,7 +646,7 @@ CHECKSUMS
   rack-session (2.1.2) sha256=595434f8c0c3473ae7d7ac56ecda6cc6dfd9d37c0b2b5255330aa1576967ffe8
   rack-test (2.2.0) sha256=005a36692c306ac0b4a9350355ee080fd09ddef1148a5f8b2ac636c720f5c463
   rackup (2.3.1) sha256=6c79c26753778e90983761d677a48937ee3192b3ffef6bc963c0950f94688868
-  raider_reporter (0.11.0) sha256=beab536808c69234dd4428ee4f559746adb4a8df7e252bcfd6c7835e33a696cd
+  raider_reporter (0.13.0) sha256=21cad91a75a7463e81040836dcff85e3f97939fc561ed15fefcafb459aeb860a
   rails (8.1.4) sha256=5f3ecdf9a2a3b79b2e31b8fee3b64a00f7284d76e5631f87d0e58e665911a33b
   rails-dom-testing (2.3.0) sha256=8acc7953a7b911ca44588bf08737bc16719f431a1cc3091a292bca7317925c1d
   rails-html-sanitizer (1.7.2) sha256=a21ef45b7a6639fc8e2282473c547514cb86ae271616162a946bf89148fa2424
