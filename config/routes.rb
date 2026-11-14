@@ -37,6 +37,7 @@ Rails.application.routes.draw do
       patch :settings
     end
     resources :runs, only: %i[index show]
+    resources :run_requests, only: %i[new create], path: "run-tests"
     resources :test_cases, only: :show do
       resources :quarantines, only: :create
     end

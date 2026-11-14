@@ -16,6 +16,14 @@ class Build < ApplicationRecord
   after_create_commit -> { broadcast_prepend_later_to [ project, :builds ], target: "builds", partial: "builds/build", locals: { build: self } }
   after_update_commit -> { broadcast_replace_later_to [ project, :builds ], partial: "builds/build", locals: { build: self } },
                       if: :saved_changes?
+  # A build produced by a Run tests request turns its "Requested runs" line into a build link.
+  after_create_commit :broadcast_run_requests, if: -> { provider == "github_actions" && build_id.present? }
+
+  def broadcast_run_requests
+    return unless project.run_requests.exists?(github_run_id: build_id)
+
+    broadcast_replace_later_to [ project, :builds ], target: "run_requests", partial: "run_requests/panel", locals: { project: project }
+  end
 
   SUPERSEDED_SQL = <<~SQL.squish.freeze
     EXISTS (

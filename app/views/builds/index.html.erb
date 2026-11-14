@@ -1,12 +1,16 @@
 <%= turbo_stream_from current_project, :builds, channel: ProjectStreamsChannel %>
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
   <h1 class="text-2xl font-semibold min-w-0 break-words"><%= link_to current_project.name, project_path(current_project), class: "inline-flex items-center min-h-11 md:min-h-0 hover:text-ruby" %> · Builds</h1>
-  <%= form_with url: project_builds_path(current_project), method: :get, class: "w-full md:w-auto", data: { turbo_frame: "_top" } do |f| %>
-    <%= f.select :branch, options_for_select([["All branches", ""]] + @branches, params[:branch]), {},
-          data: { controller: "auto-submit", action: "change->auto-submit#submit" },
-          class: "w-full md:w-auto min-h-11 md:min-h-0 rounded-md border border-neutral-bdr px-3 py-2 text-sm focus:border-ruby focus:outline-none" %>
-  <% end %>
+  <div class="flex flex-col md:flex-row md:items-center gap-3 w-full md:w-auto">
+    <%= render "run_requests/button", project: current_project %>
+    <%= form_with url: project_builds_path(current_project), method: :get, class: "w-full md:w-auto", data: { turbo_frame: "_top" } do |f| %>
+      <%= f.select :branch, options_for_select([["All branches", ""]] + @branches, params[:branch]), {},
+            data: { controller: "auto-submit", action: "change->auto-submit#submit" },
+            class: "w-full md:w-auto min-h-11 md:min-h-0 rounded-md border border-neutral-bdr px-3 py-2 text-sm focus:border-ruby focus:outline-none" %>
+    <% end %>
+  </div>
 </div>
+<%= render "run_requests/panel", project: current_project %>
 <%= panel(padding: "p-2") do %>
   <div id="builds" class="divide-y divide-neutral-bdr">
     <%= render partial: "builds/build", collection: @builds, as: :build %>
