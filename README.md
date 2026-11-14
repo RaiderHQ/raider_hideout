@@ -88,6 +88,10 @@ Open the account menu, then Phone notifications, and tap Turn on notifications o
 
 Failed GitHub Actions builds can be re-run from the phone. An admin first adds a GitHub token on the project's CI access page ([setup](docs/install/configuration.md#ci-access)). Then any member sees Re-run failed on the build page and on each failed test. It re-runs the failed jobs only, never the whole workflow, and the result arrives as the next attempt of the same build. Hideout sends a Re-run results push to the person who started the re-run, for the attempt it produced, whether it passes or fails (on by default, switch it off on Phone notifications). GitHub only; the server must reach `api.github.com`.
 
+With the same token, members can also start the test workflow: Run tests on the project page or the builds list, pick a branch or tag (and optional tags), and the run shows under Requested runs until its results arrive ([setup](docs/install/configuration.md#run-tests)).
+
+The Raider app is a native iOS shell around Hideout's own pages (Hotwire Native, private for now, Simulator only). It needs a Hideout with app support, which serves `/configurations/ios_v1.json`; push notifications in the app come in a later version, so keep the Home Screen web app for push. To try the app or Hideout locally with sample data, run `bin/rails hideout:demo` (development and test only) and sign in as `demo@raider.test` / `raider-demo-password`.
+
 Push uses a VAPID key pair, generated on first use and stored encrypted in the database. Back up the database together with `storage/hideout-secrets.yml`, which holds the encryption keys. To use your own pair, or to change the contact or the allowed push hosts, see [configuration](docs/install/configuration.md#phone-notifications). `bin/rails hideout:vapid:rotate` replaces the pair and removes every device, so each phone must turn notifications on again. It refuses to run while the key variables are set.
 
 ## Public API and MCP
