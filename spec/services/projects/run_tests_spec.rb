@@ -37,7 +37,7 @@ RSpec.describe Projects::RunTests do
     [ "a..b", "-x", "a//b", "a@{1}", "x" * 201, "a.lock", "", "  ", "a b" ].each do |ref|
       expect(call(ref: ref)).to have_attributes(ok: false, message: "Enter a branch or tag name.", request: nil), ref.inspect
     end
-    [ "a\"b", "a\nb", "x" * 201, "<b>" ].each do |tags|
+    [ "a\"b", "a\nb", "x" * 201, "<b>", "a:b:c", "a:", ", ," ].each do |tags|
       expect(call(tags: tags)).to have_attributes(ok: false, message: "Use letters, numbers, @, :, commas and spaces."), tags.inspect
     end
     expect(any_request).not_to have_been_requested

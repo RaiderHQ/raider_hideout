@@ -8,6 +8,9 @@ class RunRequest < ApplicationRecord
   MAX_MESSAGE = 200
   REF_FORMAT = %r{\A(?!-)(?!.*\.\.)(?!.*//)(?!.*@\{)(?!.*\.lock\z)[A-Za-z0-9._/-]{1,200}(?<![/.])\z}
   TAGS_FORMAT = /\A[A-Za-z0-9@_:,.~! -]{1,200}\z/
+  # Each comma- or space-separated tag, as ruby_raider's generated test_pipeline.yml checks it
+  # (1406324): so Hideout refuses what the workflow would refuse.
+  TAG_FORMAT = /\A[~!]?@?[A-Za-z0-9_][A-Za-z0-9_.-]*(::?[A-Za-z0-9_.-]+)?\z/
   NO_ANSWER_AFTER = 10.minutes
   NO_RESULTS_AFTER = 2.hours
   PANEL_WINDOW = 24.hours
@@ -19,6 +22,13 @@ class RunRequest < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :ref, :repository, :workflow, presence: true
   validates :message, length: { maximum: MAX_MESSAGE }, allow_nil: true
+
+  def self.valid_tags?(value)
+    return false unless value.is_a?(String) && TAGS_FORMAT.match?(value)
+
+    tags = value.split(/[ ,]+/).reject(&:empty?)
+    tags.any? && tags.all? { |tag| TAG_FORMAT.match?(tag) }
+  end
 
   scope :live, -> { where(status: LIVE) }
 

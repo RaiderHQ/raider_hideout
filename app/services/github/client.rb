@@ -62,7 +62,7 @@ module Github
       raise Error, "invalid inputs" unless inputs.is_a?(Hash) && inputs.size == 1
 
       key, value = inputs.first
-      unless key.is_a?(String) && CiAccess::TAG_INPUT_FORMAT.match?(key) && value.is_a?(String) && RunRequest::TAGS_FORMAT.match?(value)
+      unless key.is_a?(String) && CiAccess::TAG_INPUT_FORMAT.match?(key) && RunRequest.valid_tags?(value)
         raise Error, "invalid inputs"
       end
 

@@ -56,7 +56,7 @@ module Projects
 
       @tags = nil unless access.tag_input
       return refuse(BAD_REF) unless RunRequest::REF_FORMAT.match?(@ref)
-      return refuse(BAD_TAGS) if @tags && !RunRequest::TAGS_FORMAT.match?(@tags)
+      return refuse(BAD_TAGS) if @tags && !RunRequest.valid_tags?(@tags)
 
       request = nil
       refusal = access.transaction do

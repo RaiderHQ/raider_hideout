@@ -78,4 +78,13 @@ RSpec.describe RunRequest do
     project.destroy
     expect(described_class.exists?(request.id)).to be(false)
   end
+
+  it "accepts the tags the generated workflow accepts, and nothing else" do
+    [ "@smoke", "smoke", "~slow", "!slow", "@smoke, @fast", "smoke fast", "type:api", "@type::api", "a.b-c_d" ].each do |tags|
+      expect(described_class.valid_tags?(tags)).to be(true), tags.inspect
+    end
+    [ "a:", "a:b:c", "@@x", "~~x", "x!", "-x", ".x", ", ,", " ", "", "a\"b", "a\nb", "x" * 201, nil ].each do |tags|
+      expect(described_class.valid_tags?(tags)).to be(false), tags.inspect
+    end
+  end
 end
