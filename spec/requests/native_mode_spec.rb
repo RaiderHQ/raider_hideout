@@ -54,6 +54,12 @@ RSpec.describe "Native app mode", type: :request do
       expect(response.body).not_to include("Turn on notifications", "Your devices")
     end
 
+    it "escapes names in the short title" do
+      project.update!(name: "<script>x</script>")
+      get project_path(project), headers: as_hotwire_native_ios
+      expect(title).to eq("&lt;script&gt;x&lt;/script&gt;")
+    end
+
     it "marks the Android app" do
       get projects_path, headers: { "HTTP_USER_AGENT" => NativeHelpers::ANDROID_AGENT }
       expect(response.body).to include('data-native="android"')
@@ -69,8 +75,10 @@ RSpec.describe "Native app mode", type: :request do
       trace = attach_trace(result, io: StringIO.new(file_fixture("trace-v1.zip").binread))
       get test_result_trace_path(result, trace), headers: browser
       expect(title).to eq("Trace · Checkout pays by card")
+      expect(response.body).to include('<body data-turbo="false">')
       get test_result_trace_path(result, trace), headers: as_hotwire_native_ios
       expect(title).to eq("Trace")
+      expect(response.body).to include('<body data-turbo="false" data-native="ios">')
     end
   end
 
@@ -79,7 +87,7 @@ RSpec.describe "Native app mode", type: :request do
 
     it "keeps the nav and today's titles" do
       get projects_path, headers: browser
-      expect(response.body).to include("shadow-nav", 'id="account-menu"')
+      expect(response.body).to include("<body >", "shadow-nav", 'id="account-menu"')
       expect(response.body).not_to include("data-native")
       expect(title).to eq("Raider Hideout")
       get account_path, headers: browser

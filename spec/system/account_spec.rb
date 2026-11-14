@@ -36,23 +36,23 @@ RSpec.describe "Account", type: :system do
   describe "in the Raider app" do
     it "hides the web nav, shows the server and fits a phone" do
       Capybara.using_driver(:hotwire_native_ios) do
-      sign_in_as(user)
-      at_phone_width do
-        visit account_path
-        expect(page).to have_css("body[data-native='ios']")
-        expect(page).to have_no_css("nav.shadow-nav")
-        expect(page).to have_content("Server: #{URI(current_url).host}:#{URI(current_url).port}")
-        expect(page).to have_no_link("Phone notifications")
-        expect(page.title).to eq("Account")
-        expect_no_horizontal_scroll
-        expect_tap_targets("main a, main button")
-        click_on "Change server"
-        expect(page).to have_content("Server address is only used by the Raider app.")
-        visit project_path(create(:project, organization: organization, name: "Shop tests"))
-        expect(page.title).to eq("Shop tests")
-        expect(page).to have_no_css("nav.shadow-nav")
-        expect_no_horizontal_scroll
-      end
+        sign_in_as(user)
+        at_phone_width do
+          visit account_path
+          expect(page).to have_css("body[data-native='ios']")
+          expect(page).to have_no_css("nav.shadow-nav")
+          expect(page).to have_content("Server: #{URI(current_url).host}:#{URI(current_url).port}")
+          expect(page).to have_no_link("Phone notifications")
+          expect(page.title).to eq("Account")
+          expect_no_horizontal_scroll
+          expect_tap_targets("main a, main button")
+          click_on "Change server"
+          expect(page).to have_content("Server address is only used by the Raider app.")
+          visit project_path(create(:project, organization: organization, name: "Shop tests"))
+          expect(page.title).to eq("Shop tests")
+          expect(page).to have_no_css("nav.shadow-nav")
+          expect_no_horizontal_scroll
+        end
       end
     end
   end
