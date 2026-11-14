@@ -53,7 +53,8 @@ RSpec.describe "Builds", type: :request do
     baseline = count_queries.call
     4.times { create(:build, project: project, expected_shards: 2).tap { |b| create_list(:run, 2, project: project, build: b) } }
     expect(count_queries.call).to eq(baseline)
-    expect(baseline).to be <= 10
+    # 12: the Run tests control (CI access) and the Requested runs panel add one query each.
+    expect(baseline).to be <= 12
   end
 
   it "404s for another user's project" do

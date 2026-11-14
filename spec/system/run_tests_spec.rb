@@ -33,6 +33,7 @@ RSpec.describe "Run tests", type: :system do
         at_width(width) do
           visit project_builds_path(project)
           expect(page).to have_link("Set up Run tests in CI access.")
+          expect(page).to have_css("#run_requests.hidden", visible: :all)
           expect(page).to have_no_css("#run_requests h2")
         end
         project.ci_access.update!(workflow: "test_pipeline.yml")
@@ -83,6 +84,18 @@ RSpec.describe "Run tests", type: :system do
           expect(page).to have_no_content("waiting for results")
         end
       end
+    end
+  end
+
+  it "shows the Tags field only when a tag input is set" do
+    set_up(tag_input: nil)
+    sign_in_as(user_with("member"))
+    at_phone_width do
+      visit new_project_run_request_path(project)
+      expect(page).to have_field("Branch or tag")
+      expect(page).to have_no_field("Tags (optional)")
+      expect_no_horizontal_scroll
+      expect_tap_targets("form input[type=submit], form a")
     end
   end
 

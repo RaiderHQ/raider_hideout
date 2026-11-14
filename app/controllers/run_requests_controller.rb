@@ -29,7 +29,7 @@ class RunRequestsController < ApplicationController
     @ci_access = current_project.ci_access
     return if @ci_access&.run_tests_ready?
 
-    redirect_to project_builds_path(current_project), alert: Projects::RunTests.setup_copy(current_project, Current.user)
+    redirect_to project_builds_path(current_project), alert: Projects::RunTests.setup_copy(current_project, Current.user), status: :see_other
   end
 
   def default_ref

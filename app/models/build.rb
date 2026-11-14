@@ -19,10 +19,13 @@ class Build < ApplicationRecord
   # A build produced by a Run tests request turns its "Requested runs" line into a build link.
   after_create_commit :broadcast_run_requests, if: -> { provider == "github_actions" && build_id.present? }
 
+  # Never fails an upload: the data is committed, and a missed live update shows on the next load.
   def broadcast_run_requests
     return unless project.run_requests.exists?(github_run_id: build_id)
 
     broadcast_replace_later_to [ project, :builds ], target: "run_requests", partial: "run_requests/panel", locals: { project: project }
+  rescue StandardError => e
+    Rails.logger.warn("Requested runs broadcast skipped for build #{id}: #{e.class}")
   end
 
   SUPERSEDED_SQL = <<~SQL.squish.freeze

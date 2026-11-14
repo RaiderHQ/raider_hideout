@@ -50,10 +50,14 @@ class RunRequest < ApplicationRecord
     end
   end
 
-  # The run on GitHub (html_url was validated when stored), else the workflow's runs page.
+  # The run on GitHub (html_url was validated when stored; re-checked here), else the workflow's runs page.
   def github_url
     base = "https://github.com/#{repository}/actions"
-    return html_url.presence || "#{base}/runs/#{github_run_id}" if github_run_id.present?
+    if github_run_id.present?
+      return html_url if html_url.to_s.start_with?("https://github.com/")
+
+      return "#{base}/runs/#{github_run_id}"
+    end
 
     "#{base}/workflows/#{workflow}"
   end
