@@ -78,6 +78,9 @@ Rails.application.routes.draw do
   get "manifest.json" => "pwa#manifest", as: :pwa_manifest, defaults: { format: :json }
   get "service-worker" => "pwa#service_worker", as: :pwa_service_worker, defaults: { format: :js }
   get "offline", to: "offline#show"
+  get "configurations/ios_v1.json", to: "native_configurations#show", defaults: { platform: "ios" }, format: false, as: :ios_path_configuration
+  get "configurations/android_v1.json", to: "native_configurations#show", defaults: { platform: "android" }, format: false,
+                                        as: :android_path_configuration
   root "projects#index"
   get "up" => "rails/health#show", as: :rails_health_check
 end
