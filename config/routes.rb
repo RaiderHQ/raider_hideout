@@ -11,6 +11,8 @@ Rails.application.routes.draw do
   resource :registration, only: %i[new create]
   resource :email_verification, path: "verify_email", only: %i[show create], as: :verify_email
   get "verify_email/confirm", to: "email_verifications#update", as: :verify_email_confirm
+  resource :account, only: :show
+  get "account/server", to: "accounts#server", as: :account_server
   resources :personal_tokens, only: %i[index create destroy], path: "account/tokens"
   resource :phone_notifications, only: %i[show update], path: "account/phone_notifications"
   resources :push_subscriptions, only: %i[create destroy], path: "account/push_subscriptions"

@@ -1,4 +1,5 @@
 <% content_for :title, "Run tests · #{current_project.name} · Raider Hideout" %>
+<% content_for :native_title, "Run tests" %>
 <% input = "w-full rounded-md border border-neutral-bdr px-4 py-2.5 min-h-11 md:min-h-0 focus:border-ruby focus:outline-none" %>
 <div class="max-w-xl">
   <p class="text-sm text-neutral-mid mb-2 break-words"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Builds</p>

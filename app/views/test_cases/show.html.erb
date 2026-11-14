@@ -1,3 +1,4 @@
+<% content_for :native_title, @test_case.full_name %>
 <div class="mb-6">
   <p class="text-sm text-neutral-mid break-words"><%= link_to current_project.name, project_path(current_project), class: "inline-flex items-center min-h-11 md:min-h-0 hover:text-ruby" %> ·
     <span class="font-mono break-all"><%= @test_case.file_path %><%= ":#{@test_case.line_number}" if @test_case.line_number %></span></p>

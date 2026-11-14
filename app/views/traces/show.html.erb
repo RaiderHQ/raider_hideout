@@ -1,5 +1,6 @@
 <% content_for :title, "Trace · #{@result.test_case.full_name}" %>
 <% content_for :no_turbo, "1" %>
+<% content_for :native_title, "Trace" %>
 <p class="text-sm text-neutral-mid mb-4">
   <%= link_to "Build ##{@result.run.build.id}", project_build_path(@result.run.project, @result.run.build), class: "hover:text-ruby" %>
 </p>

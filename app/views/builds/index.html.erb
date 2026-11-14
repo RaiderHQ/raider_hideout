@@ -1,3 +1,4 @@
+<% content_for :native_title, "Builds" %>
 <%= turbo_stream_from current_project, :builds, channel: ProjectStreamsChannel %>
 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
   <h1 class="text-2xl font-semibold min-w-0 break-words"><%= link_to current_project.name, project_path(current_project), class: "inline-flex items-center min-h-11 md:min-h-0 hover:text-ruby" %> · Builds</h1>
