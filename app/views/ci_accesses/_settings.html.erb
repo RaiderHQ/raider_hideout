@@ -1,0 +1,25 @@
+<%# Run tests settings: their own form, so saving them never asks for the token again. %>
+<%= panel(extra: "mt-6") do %>
+  <h2 class="text-lg font-semibold mb-4" id="run-tests-settings">Run tests</h2>
+  <%= form_with scope: :ci_access, url: settings_project_ci_access_path(current_project), method: :patch, class: "space-y-4" do |f| %>
+    <% [
+         [ :repository, "Repository", ci_access.repository || ci_access.detected_repository,
+           "The GitHub repository, as owner/name. For example: acme/shop-tests." ],
+         [ :workflow, "Workflow file", ci_access.workflow,
+           "The file name in .github/workflows, for example test_pipeline.yml. It needs a workflow_dispatch trigger." ],
+         [ :tag_input, "Tag input (optional)", ci_access.tag_input,
+           "The name of a workflow_dispatch input that takes tags, for example tags. Leave it blank to always run all tests." ]
+       ].each do |field, label, value, help| %>
+      <div>
+        <%= f.label field, label, class: "block text-sm font-medium mb-1" %>
+        <%= f.text_field field, value: value, autocomplete: "off", autocapitalize: "none", spellcheck: false, class: input,
+              aria: { describedby: "ci_access_#{field}_help" } %>
+        <p class="text-xs text-neutral-mid mt-1" id="ci_access_<%= field %>_help"><%= help %></p>
+        <% ci_access.errors[field].each do |message| %>
+          <p class="text-sm text-status-err mt-1" role="alert"><%= message %></p>
+        <% end %>
+      </div>
+    <% end %>
+    <%= f.submit "Save settings", class: button_classes(:primary, extra: "min-h-11 md:min-h-0") %>
+  <% end %>
+<% end %>

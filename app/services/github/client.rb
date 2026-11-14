@@ -25,6 +25,13 @@ module Github
       request(Net::HTTP::Get, "/repos/#{owner}/#{repo}")
     end
 
+    # GET /repos/{owner}/{repo}/actions/workflows/{workflow}: needs Actions: read.
+    def workflow(owner, repo, workflow)
+      check_parts!(owner, repo)
+      check_workflow!(workflow)
+      request(Net::HTTP::Get, "/repos/#{owner}/#{repo}/actions/workflows/#{workflow}")
+    end
+
     # POST /repos/{owner}/{repo}/actions/runs/{run_id}/rerun-failed-jobs: failed jobs only, empty body.
     def rerun_failed_jobs(owner, repo, run_id)
       check_parts!(owner, repo)
@@ -37,6 +44,10 @@ module Github
 
     def check_parts!(owner, repo)
       raise Error, "invalid repository" unless Repository.valid_part?(owner) && Repository.valid_part?(repo)
+    end
+
+    def check_workflow!(workflow)
+      raise Error, "invalid workflow" unless workflow.is_a?(String) && CiAccess::WORKFLOW_FORMAT.match?(workflow)
     end
 
     def request(verb, path)

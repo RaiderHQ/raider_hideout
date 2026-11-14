@@ -101,4 +101,23 @@ RSpec.describe Github::Client do
       expect(stub).not_to have_been_requested
     end
   end
+
+  describe "#workflow" do
+    let(:workflow_url) { "https://api.github.com/repos/octo/hello/actions/workflows/test_pipeline.yml" }
+
+    it "GETs the exact URL and returns the status" do
+      stub = stub_request(:get, workflow_url).with(headers: headers).to_return(status: 200, body: '{"id":7}')
+      expect(client.workflow("octo", "hello", "test_pipeline.yml")).to eq(Github::Response.new(status: 200, message: nil))
+      expect(stub).to have_been_requested
+    end
+
+    it "refuses a workflow or repository that could change the path, without a request" do
+      stub = stub_request(:any, /api\.github\.com/)
+      [ [ "o", "r", "../x.yml" ], [ "o", "r", "a/x.yml" ], [ "o", "r", "x%2F.yml" ], [ "o", "r", "x.yml/.." ], [ "o", "r", "x" ],
+        [ "..", "r", "x.yml" ], [ "o", "r", nil ] ].each do |o, r, w|
+        expect { client.workflow(o, r, w) }.to raise_error(Github::Client::Error)
+      end
+      expect(stub).not_to have_been_requested
+    end
+  end
 end

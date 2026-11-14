@@ -34,6 +34,7 @@ Rails.application.routes.draw do
     resource :gate, only: %i[show update], controller: "gate_rules"
     resource :ci_access, only: %i[show update destroy], path: "ci", controller: "ci_accesses" do
       post :test
+      patch :settings
     end
     resources :runs, only: %i[index show]
     resources :test_cases, only: :show do

@@ -14,7 +14,7 @@
       <div>
         <%= f.label :token, "GitHub token", class: "block text-sm font-medium mb-1" %>
         <%= f.password_field :token, value: nil, autocomplete: "off", required: true, class: input %>
-        <p class="text-xs text-neutral-mid mt-1">A fine-grained token for this repository with Actions: Read and write and Metadata: Read.</p>
+        <p class="text-xs text-neutral-mid mt-1">A fine-grained token for this repository with Actions: Read and write and Metadata: Read. Hideout uses it to re-run failed jobs and to start the test workflow.</p>
       </div>
       <%= f.submit(saved ? "Replace token" : "Save token", class: button_classes(:primary, extra: "min-h-11 md:min-h-0")) %>
     <% end %>
@@ -31,5 +31,8 @@
         </p>
       <% end %>
     <% end %>
+  <% end %>
+  <% if saved %>
+    <%= render "ci_accesses/settings", ci_access: @ci_access, input: input %>
   <% end %>
 </div>
