@@ -153,6 +153,13 @@ RSpec.describe Github::Client do
                                                   html_url: "https://github.com/octo/hello/actions/runs/123"))
     end
 
+    it "keeps an attempt page" do
+      stub_request(:post, dispatch_url).to_return(
+        status: 200, body: { workflow_run_id: 9, html_url: "https://github.com/octo/hello/actions/runs/9/attempts/1" }.to_json
+      )
+      expect(dispatch.html_url).to eq("https://github.com/octo/hello/actions/runs/9/attempts/1")
+    end
+
     it "keeps GitHub's casing of the same repository" do
       stub_request(:post, dispatch_url).to_return(
         status: 200, body: { workflow_run_id: 9, html_url: "https://github.com/Octo/Hello/actions/runs/9" }.to_json
@@ -170,7 +177,9 @@ RSpec.describe Github::Client do
     it "rebuilds an html_url that points anywhere else" do
       [ "https://evil.example/octo/hello/actions/runs/123", "https://github.com/octo/hello/actions/runs/1234",
         "https://github.com/other/hello/actions/runs/123", "https://github.com/octo/hello/actions/runs/123\"><x>",
-        "javascript:alert(1)", nil, 42 ].each do |bad|
+        "javascript:alert(1)", nil, 42, "https://github.com/octo/hello/actions/runs/123/../../../../evil/repo",
+        "httpſ://github.com/octo/hello/actions/runs/123", "https://github.com/octo/hello/actionſ/runs/123",
+        "https://github.com/octo/hello/actions/runs/123/job/5" ].each do |bad|
         stub_request(:post, dispatch_url).to_return(status: 200, body: { workflow_run_id: 123, html_url: bad }.to_json)
         expect(dispatch.html_url).to eq("https://github.com/octo/hello/actions/runs/123"), bad.inspect
       end

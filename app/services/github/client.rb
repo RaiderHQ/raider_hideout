@@ -70,7 +70,8 @@ module Github
     end
 
     # The run id only when it is an Integer that is a valid run id; the html_url only when it is
-    # that run's page on github.com (any casing of this repository), else rebuilt from the parts.
+    # exactly that run's page on github.com (ASCII, any casing of this repository, optionally an
+    # attempt), else rebuilt from the parts.
     def run_details(parsed, owner, repo)
       id = parsed&.dig("workflow_run_id")
       return [ nil, nil ] unless id.is_a?(Integer) && Repository::RUN_ID.match?(id.to_s)
@@ -78,8 +79,9 @@ module Github
       run_id = id.to_s
       built = "https://github.com/#{owner}/#{repo}/actions/runs/#{run_id}"
       url = parsed["html_url"]
-      pattern = %r{\A#{Regexp.escape(built)}(/[A-Za-z0-9/_.-]*)?\z}i
-      [ run_id, url.is_a?(String) && pattern.match?(url) ? url : built ]
+      pattern = %r{\A#{Regexp.escape(built.downcase)}(/attempts/\d{1,10})?\z}
+      trusted = url.is_a?(String) && url.ascii_only? && pattern.match?(url.downcase)
+      [ run_id, trusted ? url : built ]
     end
 
     def check_parts!(owner, repo)

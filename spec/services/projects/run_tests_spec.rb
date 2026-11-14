@@ -100,6 +100,21 @@ RSpec.describe Projects::RunTests do
     expect(outcome.message).not_to include(token)
   end
 
+  it "masks a short token prefix GitHub echoes" do
+    stub_request(:post, url).to_return(status: 401, body: { message: "Bad credentials ghp_abc1" }.to_json)
+    expect(call.request.message).to eq("Bad credentials [token]")
+  end
+
+  it "treats a stored token that fails the client's check as rejected, with the same copy in the panel" do
+    client = instance_double(Github::Client)
+    allow(client).to receive(:dispatch_workflow).and_raise(Github::Client::Error, "invalid token")
+    allow(Github::Client).to receive(:new).and_return(client)
+    outcome = call
+    expect(outcome).to have_attributes(ok: false, message: "GitHub rejected the token. Replace it in CI access.")
+    expect(outcome.request).to have_attributes(status: "rejected", http_status: nil)
+    expect(outcome.request.state_copy).to eq("GitHub rejected the token. Replace it in CI access.")
+  end
+
   it "explains a 422 without a message" do
     stub_request(:post, url).to_return(status: 422, body: "")
     expect(call.message).to eq("GitHub refused the run. Check the branch or tag and the workflow's inputs.")

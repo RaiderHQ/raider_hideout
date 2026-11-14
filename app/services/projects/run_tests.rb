@@ -91,7 +91,8 @@ module Projects
     rescue Github::Client::Error
       # run_tests_ready? and the format checks above vet every part, so only a stored token
       # that fails the client's own check lands here: a bad credential, same copy as a 401.
-      request.update_columns(status: "failed")
+      # Rejected with no HTTP status marks it, so the panel line shows the same copy.
+      request.update_columns(status: "rejected", http_status: nil, message: nil)
       Outcome.new(ok: false, message: COPY.fetch(401), request: request)
     rescue StandardError
       request.update_columns(status: "failed", message: nil) unless answered

@@ -33,7 +33,7 @@ class CiAccess < ApplicationRecord
     super.except("token")
   end
 
-  TOKEN_SHAPE = /github_pat_[A-Za-z0-9_]{8,}|gh[pousr]_[A-Za-z0-9]{8,}/
+  TOKEN_SHAPE = /github_pat_[A-Za-z0-9_]{4,}|gh[pousr]_[A-Za-z0-9]{4,}/
 
   # Masks the exact token, then anything token-shaped (GitHub may echo a prefix).
   def self.mask(text, token = nil)

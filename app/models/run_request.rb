@@ -45,6 +45,7 @@ class RunRequest < ApplicationRecord
     case status
     when "pending" then created_at > NO_ANSWER_AFTER.ago ? "waiting for GitHub" : "no answer recorded"
     when "accepted" then accepted_copy
+    when "rejected" then http_status ? Projects::RunTests.error_copy(http_status, message) : Projects::RunTests::COPY.fetch(401)
     else Projects::RunTests.error_copy(http_status, message)
     end
   end
