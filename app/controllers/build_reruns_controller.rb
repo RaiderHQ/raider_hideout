@@ -9,7 +9,7 @@ class BuildRerunsController < ApplicationController
     build = current_project.builds.find(params[:build_id])
     outcome = Builds::Rerun.call(build: build, user: Current.user)
     redirect_to project_build_path(current_project, build, anchor: card_anchor),
-                (outcome.ok ? { notice: outcome.message } : { alert: outcome.message })
+                status: :see_other, **(outcome.ok ? { notice: outcome.message } : { alert: outcome.message })
   end
 
   private

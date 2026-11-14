@@ -49,7 +49,9 @@ RSpec.describe "Re-run failed", type: :system do
         expect(stub).to have_been_requested.once
       end
 
-      it "returns to the card anchor from a card button" do
+      # Turbo follows the 303 with fetch, which drops the URL fragment, so the page opens at the
+      # top with the flash (accepted in raider app spec §4.3). The redirect still carries it.
+      it "re-runs from a card button and lands on the build page" do
         add_token
         stub_request(:post, url).to_return(status: 201, body: "")
         sign_in_as(user_with("member"))
@@ -57,7 +59,7 @@ RSpec.describe "Re-run failed", type: :system do
           visit project_build_path(project, build_record)
           within("##{ActionView::RecordIdentifier.dom_id(result)}") { click_button "Re-run failed" }
           expect(page).to have_content("Re-run requested.")
-          expect(page.evaluate_script("location.hash")).to eq("#test_result_#{result.id}")
+          expect(page).to have_current_path(project_build_path(project, build_record))
         end
       end
     end
