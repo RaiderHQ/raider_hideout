@@ -11,7 +11,7 @@ RSpec.describe "Native path configuration", type: :request do
       [ [ "/test_results/\\d+/trace/\\d+$" ], { "pull_to_refresh_enabled" => false } ],
       [ [ "^/attachments/\\d+" ], { "view_controller" => "attachment" } ],
       [ [ "^/account/server$" ], { "view_controller" => "server_address" } ],
-      [ [ "/letter_opener", "/mcp", "/api/" ], { "presentation" => "none" } ]
+      [ [ "^/letter_opener", "^/mcp$", "^/api/" ], { "presentation" => "none" } ]
     ].map { |patterns, properties| { "patterns" => patterns, "properties" => properties } }
   end
 
@@ -43,5 +43,17 @@ RSpec.describe "Native path configuration", type: :request do
     expect(response).to have_http_status(:not_found)
     get "/configurations/ios_v1.xml"
     expect(response).to have_http_status(:not_found)
+  end
+
+  it "never blocks a project or organization page whose slug looks like a blocked path" do
+    get "/configurations/ios_v1.json"
+    none = response.parsed_body["rules"].select { |rule| rule.dig("properties", "presentation") == "none" }
+    patterns = none.flat_map { |rule| rule["patterns"] }.map { |pattern| Regexp.new(pattern) }
+    %w[/projects/mcp-server /projects/api/builds /organizations/letter_opener-team /projects/x/api].each do |path|
+      expect(patterns.none? { |pattern| pattern.match?(path) }).to be(true), path
+    end
+    %w[/mcp /api/v1/runs /letter_opener].each do |path|
+      expect(patterns.any? { |pattern| pattern.match?(path) }).to be(true), path
+    end
   end
 end

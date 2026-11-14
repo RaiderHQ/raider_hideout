@@ -64,9 +64,9 @@ class RunRequest < ApplicationRecord
   def github_url
     base = "https://github.com/#{repository}/actions"
     if github_run_id.present?
-      return html_url if html_url.to_s.start_with?("https://github.com/")
-
-      return "#{base}/runs/#{github_run_id}"
+      built = "#{base}/runs/#{github_run_id}"
+      exact = %r{\A#{Regexp.escape(built.downcase)}(/attempts/\d{1,10})?\z}
+      return html_url.to_s.ascii_only? && exact.match?(html_url.to_s.downcase) ? html_url : built
     end
 
     "#{base}/workflows/#{workflow}"

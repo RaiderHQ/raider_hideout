@@ -8,14 +8,6 @@ module Builds
 
     # :button (member+, set up), :set_up (admin+, not set up), :ask_admin (member) or nil (viewer).
     def state
-      return @state if defined?(@state)
-
-      @state = compute_state
-    end
-
-    private
-
-    def compute_state
       return unless @role_at_least.call(:member)
       return :button if @project.ci_access&.run_tests_ready?
 
