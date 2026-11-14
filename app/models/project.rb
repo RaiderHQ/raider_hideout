@@ -12,6 +12,7 @@ class Project < ApplicationRecord
   has_many :saved_views, dependent: :delete_all
   has_one :gate_rule, dependent: :delete
   has_one :ci_access, dependent: :destroy
+  has_many :run_requests, dependent: :delete_all
 
   CONVENTIONAL_BRANCHES = %w[main master].freeze
 

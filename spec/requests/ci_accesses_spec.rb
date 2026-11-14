@@ -288,6 +288,8 @@ RSpec.describe "CI access", type: :request do
         post test_project_ci_access_path(project)
         expect(flash[:notice]).to eq("#{ok_copy} Found test_pipeline.yml.")
         expect(project.ci_access.reload.check_message).to eq("#{ok_copy} Found test_pipeline.yml.")
+        follow_redirect!
+        expect(response.body).not_to include(token)
       end
 
       it "says when the workflow is missing" do

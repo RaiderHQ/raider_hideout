@@ -1,6 +1,9 @@
 <%# Run tests settings: their own form, so saving them never asks for the token again. %>
 <%= panel(extra: "mt-6") do %>
   <h2 class="text-lg font-semibold mb-4" id="run-tests-settings">Run tests</h2>
+  <% ci_access.errors[:base].each do |message| %>
+    <p class="rounded-md bg-status-err-bg text-status-err text-sm px-4 py-3 mb-4" role="alert"><%= message %></p>
+  <% end %>
   <%= form_with scope: :ci_access, url: settings_project_ci_access_path(current_project), method: :patch, class: "space-y-4" do |f| %>
     <% [
          [ :repository, "Repository", ci_access.repository || ci_access.detected_repository,

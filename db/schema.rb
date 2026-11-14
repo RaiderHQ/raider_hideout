@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_14_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_14_100100) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
     t.string "record_type", null: false
@@ -103,6 +103,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_100000) do
     t.integer "gate_attempt"
     t.index ["baseline_build_id"], name: "index_builds_on_baseline_build_id"
     t.index ["project_id", "branch", "created_at"], name: "index_builds_on_project_id_and_branch_and_created_at"
+    t.index ["project_id", "build_id"], name: "index_builds_on_project_id_and_build_id"
     t.index ["project_id", "build_key"], name: "index_builds_on_project_id_and_build_key", unique: true
     t.index ["project_id", "ci_run_key"], name: "index_builds_on_project_id_and_ci_run_key", unique: true, where: "ci_run_key IS NOT NULL"
     t.index ["project_id", "pr_number"], name: "index_builds_on_project_id_and_pr_number"
@@ -323,6 +324,25 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_100000) do
     t.index ["test_case_id"], name: "index_quarantines_on_test_case_id"
   end
 
+  create_table "run_requests", force: :cascade do |t|
+    t.integer "project_id", null: false
+    t.integer "user_id"
+    t.string "ref", null: false
+    t.string "tags"
+    t.string "repository", null: false
+    t.string "workflow", null: false
+    t.string "status", null: false
+    t.integer "http_status"
+    t.string "message"
+    t.string "github_run_id"
+    t.string "html_url"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "created_at"], name: "index_run_requests_on_project_id_and_created_at"
+    t.index ["project_id", "github_run_id"], name: "index_run_requests_on_project_id_and_github_run_id"
+    t.index ["user_id"], name: "index_run_requests_on_user_id"
+  end
+
   create_table "runs", force: :cascade do |t|
     t.integer "project_id", null: false
     t.string "client_run_id", null: false
@@ -494,6 +514,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_14_100000) do
   add_foreign_key "quarantines", "test_cases", on_delete: :cascade
   add_foreign_key "quarantines", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "quarantines", "users", column: "released_by_id", on_delete: :nullify
+  add_foreign_key "run_requests", "projects"
+  add_foreign_key "run_requests", "users", on_delete: :nullify
   add_foreign_key "runs", "builds"
   add_foreign_key "runs", "projects"
   add_foreign_key "saved_views", "projects"

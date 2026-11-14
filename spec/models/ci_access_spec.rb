@@ -63,7 +63,7 @@ RSpec.describe CiAccess do
     it "accepts owner/name repositories and rejects anything else" do
       expect(with_settings(repository: "a/b")).to be_valid
       expect(with_settings(repository: "acme/shop-tests.v2")).to be_valid
-      [ "a/b/c", "../x", "a", "a/", "/b", "a/..", "./b", "a b/c", "a/b?x", "a/%2F" ].each do |value|
+      [ "a/b/c", "../x", "a", "a/", "/b", "a/..", "./b", "a b/c", "a/b?x", "a/%2F", "a/b\nc", "a\n/b" ].each do |value|
         access = with_settings(repository: value)
         expect(access).not_to be_valid, value.inspect
         expect(access.errors[:repository]).to eq([ "Enter the repository as owner/name." ])
@@ -73,7 +73,7 @@ RSpec.describe CiAccess do
     it "accepts .yml and .yaml workflow files only" do
       expect(with_settings(workflow: "x.yml")).to be_valid
       expect(with_settings(workflow: "test_pipeline.yaml")).to be_valid
-      [ "x.yml/..", "x", "x.json", "../x.yml", "a/x.yml", "x%2F.yml", "#{'a' * 101}.yml" ].each do |value|
+      [ "x.yml/..", "x", "x.json", "../x.yml", "a/x.yml", "x%2F.yml", "#{'a' * 101}.yml", "x.yml\nfoo", "a\nx.yml" ].each do |value|
         access = with_settings(workflow: value)
         expect(access).not_to be_valid, value.inspect
         expect(access.errors[:workflow]).to eq([ "Enter a workflow file name ending in .yml or .yaml." ])
@@ -83,7 +83,7 @@ RSpec.describe CiAccess do
     it "accepts input names only" do
       expect(with_settings(tag_input: "tags")).to be_valid
       expect(with_settings(tag_input: "_rspec-tags2")).to be_valid
-      [ "1tags", "ta gs", "tags/x", "t.ags", "a" * 101 ].each do |value|
+      [ "1tags", "ta gs", "tags/x", "t.ags", "a" * 101, "tags\nx" ].each do |value|
         access = with_settings(tag_input: value)
         expect(access).not_to be_valid, value.inspect
         expect(access.errors[:tag_input]).to eq([ "Use letters, numbers, - and _ for the input name." ])
