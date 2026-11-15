@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Raider Hideout" %></title>
+    <title><%= page_title %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
     <meta name="theme-color" content="#C14420">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,7 +14,8 @@
     <%= javascript_importmap_tags %>
     <%= yield :head %>
   </head>
-  <body <%= tag.attributes(data: { turbo: false }) if content_for?(:no_turbo) %>>
+  <body <%= tag.attributes(data: { turbo: (false if content_for?(:no_turbo)), native: native_platform }.compact) %>>
+    <% unless hotwire_native_app? %>
     <nav class="bg-neutral-wh shadow-nav">
       <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <%= link_to root_path, "aria-label": "Raider Hideout", class: "flex items-center gap-2 min-h-11 font-semibold text-neutral-dark" do %>
@@ -35,6 +36,7 @@
             <details id="account-menu" class="relative">
               <summary class="flex items-center min-h-11 cursor-pointer list-none text-neutral-dk hover:text-ruby">Account</summary>
               <div class="absolute right-0 mt-2 w-56 bg-neutral-wh rounded-md shadow-card border border-neutral-bdr py-1 z-10">
+                <%= link_to "Account", account_path, class: "block min-h-11 px-4 py-3 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
                 <%= link_to "Tokens", personal_tokens_path, class: "block min-h-11 px-4 py-3 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
                 <%= link_to "Phone notifications", phone_notifications_path, class: "block min-h-11 px-4 py-3 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
                 <%= button_to "Sign out", session_path, method: :delete, class: "block w-full min-h-11 px-4 py-3 text-left text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
@@ -44,6 +46,7 @@
         <% end %>
       </div>
     </nav>
+    <% end %>
     <main class="max-w-6xl mx-auto px-4 py-8 animate-page-enter">
       <% flash.each do |type, message| %>
         <div class="mb-6 rounded-md px-4 py-3 text-sm <%= type == 'alert' ? 'bg-status-err-bg text-status-err' : 'bg-status-ok-bg text-status-ok' %>"><%= message %></div>

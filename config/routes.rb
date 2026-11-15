@@ -11,6 +11,8 @@ Rails.application.routes.draw do
   resource :registration, only: %i[new create]
   resource :email_verification, path: "verify_email", only: %i[show create], as: :verify_email
   get "verify_email/confirm", to: "email_verifications#update", as: :verify_email_confirm
+  resource :account, only: :show
+  get "account/server", to: "accounts#server", as: :account_server
   resources :personal_tokens, only: %i[index create destroy], path: "account/tokens"
   resource :phone_notifications, only: %i[show update], path: "account/phone_notifications"
   resources :push_subscriptions, only: %i[create destroy], path: "account/push_subscriptions"
@@ -34,8 +36,10 @@ Rails.application.routes.draw do
     resource :gate, only: %i[show update], controller: "gate_rules"
     resource :ci_access, only: %i[show update destroy], path: "ci", controller: "ci_accesses" do
       post :test
+      patch :settings
     end
     resources :runs, only: %i[index show]
+    resources :run_requests, only: %i[new create], path: "run-tests"
     resources :test_cases, only: :show do
       resources :quarantines, only: :create
     end
@@ -74,6 +78,9 @@ Rails.application.routes.draw do
   get "manifest.json" => "pwa#manifest", as: :pwa_manifest, defaults: { format: :json }
   get "service-worker" => "pwa#service_worker", as: :pwa_service_worker, defaults: { format: :js }
   get "offline", to: "offline#show"
+  get "configurations/ios_v1.json", to: "native_configurations#show", defaults: { platform: "ios" }, format: false, as: :ios_path_configuration
+  get "configurations/android_v1.json", to: "native_configurations#show", defaults: { platform: "android" }, format: false,
+                                        as: :android_path_configuration
   root "projects#index"
   get "up" => "rails/health#show", as: :rails_health_check
 end

@@ -1,4 +1,8 @@
 <% content_for :title, "Phone notifications · Raider Hideout" %>
+<% if hotwire_native_app? %>
+<h1 class="text-2xl font-semibold mb-2 sr-only">Phone notifications</h1>
+<p class="text-neutral-dk" data-testid="native-notifications">Notifications in the Raider app come in a later version. To get them now, open this server in Safari and add it to your Home Screen.</p>
+<% else %>
 <h1 class="text-2xl font-semibold mb-2">Phone notifications</h1>
 <p class="text-neutral-dk mb-6">On iPhone and iPad, add Hideout to your Home Screen first (Share → Add to Home Screen). iOS 17.2 or later.</p>
 
@@ -60,4 +64,5 @@
     <% end %>
   <% end %>
   <%= f.submit "Save", class: button_classes(:primary, extra: "w-full md:w-auto") %>
+<% end %>
 <% end %>

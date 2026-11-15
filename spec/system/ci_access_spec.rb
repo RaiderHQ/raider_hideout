@@ -37,4 +37,23 @@ RSpec.describe "CI access", type: :system do
     visit project_path(project)
     expect(page).to have_no_link("CI access")
   end
+
+  it "lets an admin save the Run tests settings at phone width" do
+    CiAccess.create!(project: project, token: token, token_saved_at: Time.current)
+    create(:build, project: project, provider: "github_actions", ci_run_key: "github_actions:octo/hello:5")
+    sign_in_as(admin)
+    at_phone_width do
+      visit project_ci_access_path(project)
+      expect(page).to have_field("Repository", with: "octo/hello")
+      fill_in "Workflow file", with: "test_pipeline.yml"
+      fill_in "Tag input (optional)", with: "tags"
+      click_on "Save settings"
+      expect(page).to have_content("Settings saved.")
+      expect(page).to have_field("Workflow file", with: "test_pipeline.yml")
+      expect(page).not_to have_content(token)
+      expect_no_horizontal_scroll
+      expect_tap_targets("#run-tests-settings ~ form input:not([type=hidden])")
+    end
+    expect(project.ci_access.reload).to have_attributes(repository: "octo/hello", workflow: "test_pipeline.yml", tag_input: "tags")
+  end
 end

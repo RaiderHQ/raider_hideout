@@ -1,5 +1,6 @@
+<% content_for :native_title, "Projects" %>
 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
-  <h1 class="text-2xl font-semibold">Projects</h1>
+  <h1 class="text-2xl font-semibold <%= "sr-only" if hotwire_native_app? %>">Projects</h1>
   <%= link_to "New project", new_project_path, class: button_classes(:primary) %>
 </div>
 <% if @groups.empty? %>

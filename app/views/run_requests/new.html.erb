@@ -1,0 +1,34 @@
+<% content_for :title, "Run tests · #{current_project.name} · Raider Hideout" %>
+<% content_for :native_title, "Run tests" %>
+<% input = "w-full rounded-md border border-neutral-bdr px-4 py-2.5 min-h-11 md:min-h-0 focus:border-ruby focus:outline-none" %>
+<div class="max-w-xl">
+  <p class="text-sm text-neutral-mid mb-2 break-words"><%= link_to current_project.name, project_path(current_project), class: "hover:text-ruby" %> · Builds</p>
+  <%= panel do %>
+    <h1 class="text-xl font-semibold mb-4">Run tests</h1>
+    <%= form_with scope: :run_request, url: project_run_requests_path(current_project), class: "space-y-4" do |f| %>
+      <div>
+        <%= f.label :ref, "Branch or tag", class: "block text-sm font-medium mb-1" %>
+        <%= f.text_field :ref, value: @ref, required: true, maxlength: 200, list: "run-request-branches", autocomplete: "off",
+              autocapitalize: "none", spellcheck: false, class: input %>
+        <datalist id="run-request-branches">
+          <% branch_suggestions.each do |branch| %>
+            <option value="<%= branch %>"></option>
+          <% end %>
+        </datalist>
+      </div>
+      <% if @ci_access.tag_input %>
+        <div>
+          <%= f.label :tags, "Tags (optional)", class: "block text-sm font-medium mb-1" %>
+          <%= f.text_field :tags, value: @tags, maxlength: 200, autocomplete: "off", autocapitalize: "none", spellcheck: false,
+                class: input, aria: { describedby: "run_request_tags_help" } %>
+          <p class="text-xs text-neutral-mid mt-1" id="run_request_tags_help">Leave blank to run all tests. Example: @smoke</p>
+        </div>
+      <% end %>
+      <div class="flex flex-wrap items-center gap-3">
+        <%= f.submit "Run tests", class: button_classes(:primary, extra: "min-h-11 md:min-h-0") %>
+        <%= link_to "Cancel", project_builds_path(current_project), class: button_classes(:secondary, extra: "min-h-11 md:min-h-0") %>
+      </div>
+    <% end %>
+    <p class="text-sm text-neutral-mid mt-4">Runs <%= @ci_access.workflow %> on GitHub Actions in <%= @ci_access.repository %>. Results appear in Builds when the run uploads them.</p>
+  <% end %>
+</div>

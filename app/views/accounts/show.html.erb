@@ -1,0 +1,30 @@
+<% content_for :title, "Account · Raider Hideout" %>
+<% content_for :native_title, "Account" %>
+<% row = "flex items-center min-h-11 px-4 py-3 text-neutral-dk hover:text-ruby hover:bg-ruby-sub" %>
+<h1 class="text-2xl font-semibold mb-6 <%= "sr-only" if hotwire_native_app? %>">Account</h1>
+<p class="text-sm text-neutral-mid mb-4 break-words"><%= Current.user.email_address %></p>
+<% if hotwire_native_app? %>
+  <%= panel(extra: "mb-6", padding: "p-2") do %>
+    <p class="px-4 py-3 text-sm break-words" data-testid="account-server">Server: <%= request.host_with_port %></p>
+    <%= link_to "Change server", account_server_path, class: row %>
+  <% end %>
+<% end %>
+<% if @organizations.any? %>
+  <h2 class="text-sm uppercase tracking-wider text-neutral-mid mb-2">Organizations</h2>
+  <%= panel(extra: "mb-6", padding: "p-2") do %>
+    <div class="divide-y divide-neutral-bdr">
+      <% @organizations.each do |organization| %>
+        <%= link_to organization.name, organization_path(organization), class: row %>
+      <% end %>
+    </div>
+  <% end %>
+<% end %>
+<%= panel(padding: "p-2") do %>
+  <div class="divide-y divide-neutral-bdr">
+    <%= link_to "Tokens", personal_tokens_path, class: row %>
+    <% unless hotwire_native_app? %>
+      <%= link_to "Phone notifications", phone_notifications_path, class: row %>
+    <% end %>
+    <%= button_to "Sign out", session_path, method: :delete, class: "#{row} w-full text-left cursor-pointer" %>
+  </div>
+<% end %>

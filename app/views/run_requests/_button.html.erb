@@ -1,0 +1,9 @@
+<%# Run tests control for one viewer: a link to the form, a set-up link, a line, or nothing. %>
+<% case Builds::RunTestsPanel.new(project, role_at_least: method(:role_at_least?)).state %>
+<% when :button %>
+  <%= link_to "Run tests", new_project_run_request_path(project), class: button_classes(:primary, extra: "min-w-0 min-h-11 md:min-h-0"), data: { testid: "run-tests" } %>
+<% when :set_up %>
+  <%= link_to "Set up Run tests in CI access.", project_ci_access_path(project, anchor: "run-tests-settings"), class: "inline-flex items-center min-h-11 md:min-h-0 text-sm text-ruby hover:underline", data: { testid: "run-tests" } %>
+<% when :ask_admin %>
+  <p class="inline-flex items-center min-h-11 md:min-h-0 text-sm text-neutral-mid" data-testid="run-tests">Ask an admin to set up Run tests in CI access.</p>
+<% end %>

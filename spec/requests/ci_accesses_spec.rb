@@ -37,7 +37,8 @@ RSpec.describe "CI access", type: :request do
       get project_ci_access_path(project)
       expect(response).to have_http_status(:ok)
       expect(response.body).to include("CI access", "GitHub token",
-                                       "A fine-grained token for this repository with Actions: Read and write and Metadata: Read.")
+                                       "A fine-grained token for this repository with Actions: Read and write and Metadata: Read. " \
+                                       "Hideout uses it to re-run failed jobs and to start the test workflow.")
       expect(response.body).not_to include("Remove token")
     end
   end
@@ -146,7 +147,7 @@ RSpec.describe "CI access", type: :request do
       stub = stub_request(:get, "https://api.github.com/repos/octo/hello").to_return(status: 200, body: "{}")
       travel_to(Time.zone.parse("2026-11-02 12:00:00")) { post test_project_ci_access_path(project) }
       expect(stub).to have_been_requested.once
-      message = "GitHub accepted the token and can see octo/hello. Re-runs also need Actions: Read and write."
+      message = "GitHub accepted the token and can see octo/hello. Re-runs and Run tests also need Actions: Read and write."
       expect(flash[:notice]).to eq(message)
       expect(project.ci_access.reload).to have_attributes(check_ok: true, check_message: message,
                                                           checked_at: Time.zone.parse("2026-11-02 12:00:00"))
@@ -184,6 +185,129 @@ RSpec.describe "CI access", type: :request do
       post test_project_ci_access_path(project)
       expect(project.ci_access.reload.check_ok).to be(false)
       expect(evil).not_to have_been_requested
+    end
+  end
+
+  describe "Run tests settings" do
+    def save_settings(**values) = patch(settings_project_ci_access_path(project), params: { ci_access: values })
+
+    %w[viewer member].each do |role|
+      it "forbids a #{role}" do
+        CiAccess.create!(project: project, token: token, token_saved_at: Time.current)
+        act_as(role)
+        save_settings(repository: "a/b")
+        expect(response).to have_http_status(:forbidden)
+        expect(project.ci_access.reload.repository).to be_nil
+      end
+    end
+
+    it "asks for a token first" do
+      act_as("admin")
+      save_settings(repository: "a/b")
+      expect(response).to redirect_to(project_ci_access_path(project))
+      expect(flash[:alert]).to eq("Add a GitHub token in CI access first.")
+      expect(CiAccess.count).to eq(0)
+    end
+
+    it "saves the settings without a token param and keeps the token" do
+      act_as("admin")
+      save_token
+      saved_at = project.ci_access.token_saved_at
+      save_settings(repository: "acme/shop-tests", workflow: "test_pipeline.yml", tag_input: "tags", token: "ghp_#{'z' * 36}")
+      expect(response).to redirect_to(project_ci_access_path(project))
+      expect(flash[:notice]).to eq("Settings saved.")
+      expect(project.ci_access.reload).to have_attributes(token: token, token_saved_at: saved_at, repository: "acme/shop-tests",
+                                                          workflow: "test_pipeline.yml", tag_input: "tags")
+      follow_redirect!
+      expect(response.body).not_to include(token)
+    end
+
+    it "keeps the settings when only the token is replaced" do
+      act_as("admin")
+      save_token
+      save_settings(repository: "acme/shop", workflow: "x.yml", tag_input: "tags")
+      save_token("ghp_#{'c' * 36}")
+      expect(project.ci_access.reload).to have_attributes(repository: "acme/shop", workflow: "x.yml", tag_input: "tags")
+    end
+
+    it "re-renders the form with each format error and keeps the typed values" do
+      act_as("admin")
+      save_token
+      save_settings(repository: "a/b/c", workflow: "x.json", tag_input: "1tags")
+      expect(response).to have_http_status(:unprocessable_content)
+      expect(response.body).to include("Enter the repository as owner/name.", "Enter a workflow file name ending in .yml or .yaml.",
+                                       "Use letters, numbers, - and _ for the input name.", 'value="a/b/c"', 'value="x.json"')
+      expect(response.body).not_to include(token)
+      expect(project.ci_access.reload.repository).to be_nil
+    end
+
+    it "prefills the repository from the latest GitHub Actions build until one is saved" do
+      act_as("admin")
+      save_token
+      create(:build, project: project, provider: "github_actions", ci_run_key: "github_actions:Acme/Shop:2")
+      get project_ci_access_path(project)
+      expect(response.body).to include("Run tests", "Repository", "Workflow file", "Tag input (optional)", 'value="Acme/Shop"',
+                                       "The GitHub repository, as owner/name. For example: acme/shop-tests.",
+                                       "The file name in .github/workflows, for example test_pipeline.yml. It needs a workflow_dispatch trigger.",
+                                       "The name of a workflow_dispatch input that takes tags, for example tags. Leave it blank to always run all tests.",
+                                       "Save settings")
+      save_settings(repository: "acme/other", workflow: "", tag_input: "")
+      get project_ci_access_path(project)
+      expect(response.body).to include('value="acme/other"')
+    end
+
+    describe "Test connection with settings" do
+      let(:ok_copy) { "GitHub accepted the token and can see acme/shop. Re-runs and Run tests also need Actions: Read and write." }
+
+      before do
+        act_as("admin")
+        save_token
+        create(:build, project: project, provider: "github_actions", ci_run_key: "github_actions:octo/hello:22")
+      end
+
+      it "uses the saved repository before the detected one" do
+        save_settings(repository: "acme/shop")
+        stub = stub_request(:get, "https://api.github.com/repos/acme/shop").to_return(status: 200, body: "{}")
+        post test_project_ci_access_path(project)
+        expect(stub).to have_been_requested.once
+        expect(flash[:notice]).to eq(ok_copy)
+      end
+
+      it "tests a saved repository before any build arrives" do
+        project.builds.delete_all
+        save_settings(repository: "acme/shop")
+        stub_request(:get, "https://api.github.com/repos/acme/shop").to_return(status: 200, body: "{}")
+        post test_project_ci_access_path(project)
+        expect(flash[:notice]).to eq(ok_copy)
+      end
+
+      it "says when the workflow is found" do
+        save_settings(repository: "acme/shop", workflow: "test_pipeline.yml")
+        stub_request(:get, "https://api.github.com/repos/acme/shop").to_return(status: 200, body: "{}")
+        stub_request(:get, "https://api.github.com/repos/acme/shop/actions/workflows/test_pipeline.yml").to_return(status: 200, body: "{}")
+        post test_project_ci_access_path(project)
+        expect(flash[:notice]).to eq("#{ok_copy} Found test_pipeline.yml.")
+        expect(project.ci_access.reload.check_message).to eq("#{ok_copy} Found test_pipeline.yml.")
+        follow_redirect!
+        expect(response.body).not_to include(token)
+      end
+
+      it "says when the workflow is missing" do
+        save_settings(repository: "acme/shop", workflow: "test_pipeline.yml")
+        stub_request(:get, "https://api.github.com/repos/acme/shop").to_return(status: 200, body: "{}")
+        stub_request(:get, "https://api.github.com/repos/acme/shop/actions/workflows/test_pipeline.yml").to_return(status: 404, body: "{}")
+        post test_project_ci_access_path(project)
+        expect(flash[:notice]).to eq("#{ok_copy} GitHub can't find test_pipeline.yml in acme/shop.")
+      end
+
+      it "does not ask for the workflow when the repository check fails" do
+        save_settings(repository: "acme/shop", workflow: "test_pipeline.yml")
+        stub_request(:get, "https://api.github.com/repos/acme/shop").to_return(status: 401, body: "{}")
+        workflow = stub_request(:get, %r{/actions/workflows/})
+        post test_project_ci_access_path(project)
+        expect(flash[:alert]).to eq("GitHub rejected the token. Replace it in CI access.")
+        expect(workflow).not_to have_been_requested
+      end
     end
   end
 end

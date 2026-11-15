@@ -469,4 +469,22 @@ RSpec.describe Build, "re-run" do
       expect(build_record.pending_rerun).to be_nil
     end
   end
+
+  describe "Requested runs broadcast" do
+    include ActiveJob::TestHelper
+
+    let(:project) { create(:project) }
+
+    def panel_jobs = enqueued_jobs.select { |job| job["job_class"] == "Turbo::Streams::ActionBroadcastJob" && job["arguments"].to_s.include?("run_requests") }
+
+    it "replaces the panel only when a new GitHub Actions build matches a requested run" do
+      RunRequest.create!(project: project, ref: "main", repository: "a/b", workflow: "x.yml", status: "accepted", github_run_id: "77")
+      create(:build, project: project, provider: "github_actions", build_id: "76")
+      create(:build, project: project, provider: "azure", build_id: "77")
+      create(:build, project: create(:project), provider: "github_actions", build_id: "77")
+      expect(panel_jobs).to be_empty
+      create(:build, project: project, provider: "github_actions", build_id: "77")
+      expect(panel_jobs.size).to eq(1)
+    end
+  end
 end

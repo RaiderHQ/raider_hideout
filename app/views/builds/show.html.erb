@@ -1,3 +1,4 @@
+<% content_for :native_title, "Build ##{@build.id}" %>
 <% if @open_result_id %><div hidden data-controller="scroll-to-result" data-scroll-to-result-id-value="test_result_<%= @open_result_id %>"></div><% end %>
 <div class="mb-6">
   <p class="text-sm text-neutral-mid break-words"><%= link_to current_project.name, project_path(current_project), class: "inline-flex items-center min-h-11 md:min-h-0 hover:text-ruby" %> ·

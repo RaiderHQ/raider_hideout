@@ -1,0 +1,27 @@
+<%# Requested runs of the last 24 hours. Rendered by the page and by a broadcast job, so it
+    may use only `project`: no request helpers, no current user. %>
+<% run_requests = RunRequest.recent(project).to_a %>
+<div id="run_requests" class="<%= "hidden" if run_requests.empty? %>">
+  <% if run_requests.any? %>
+    <%= panel(extra: "mb-6") do %>
+      <h2 class="text-lg font-semibold mb-3">Requested runs</h2>
+      <ul class="divide-y divide-neutral-bdr text-sm">
+        <% run_requests.each do |run_request| %>
+          <% build = run_request.build %>
+          <li class="py-2 break-words" data-testid="run-request">
+            <%= run_request.ref %> · <%= run_request.tags_label %> · requested by <%= run_request.requester_label %> at <%= run_request.clock %> —
+            <% if build %>
+              <%= link_to run_request.state_copy, project_build_path(project, build), class: "inline-flex items-center min-h-11 md:min-h-0 text-ruby hover:underline" %>
+            <% else %>
+              <span class="<%= "text-status-err" if run_request.status.in?(%w[rejected failed]) %>"><%= run_request.state_copy %></span>
+              <% if run_request.status == "accepted" %>
+                <%= link_to "View on GitHub", run_request.github_url, target: "_blank", rel: "noopener noreferrer",
+                      class: "inline-flex items-center min-h-11 md:min-h-0 ml-1 text-ruby hover:underline" %>
+              <% end %>
+            <% end %>
+          </li>
+        <% end %>
+      </ul>
+    <% end %>
+  <% end %>
+</div>
