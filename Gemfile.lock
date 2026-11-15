@@ -251,7 +251,7 @@ GEM
       racc (~> 1.4)
     nokogiri (1.19.6-x86_64-linux-musl)
       racc (~> 1.4)
-    openssl (4.0.0)
+    openssl (4.0.2)
     ostruct (0.6.3)
     pagy (43.8.1)
       json
@@ -504,7 +504,7 @@ DEPENDENCIES
   kamal
   letter_opener_web (~> 3.0)
   mcp (~> 1.8.1)
-  openssl (= 4.0.0)
+  openssl (= 4.0.2)
   pagy (~> 43.8)
   pg (~> 1.5)
   propshaft
@@ -622,7 +622,7 @@ CHECKSUMS
   nokogiri (1.19.6-x86_64-darwin) sha256=8f15f820fa1373d8685ae48cdd8020d923b4104db74d149d1235ddae956469a6
   nokogiri (1.19.6-x86_64-linux-gnu) sha256=ad1e228c3bc873e4f4fc4f845d7e37b4d3648af537acd7b5e8463cce5693065b
   nokogiri (1.19.6-x86_64-linux-musl) sha256=c92b29e897f4ddc19bea67188695aab667f695e74592a5c8741642ecb25d34d9
-  openssl (4.0.0) sha256=185711ed93d4e9c9a9db6efea7edb202dfe04f7d3692fbab988e3d84e498ee91
+  openssl (4.0.2) sha256=1037ad2868ae58df9ad917891c0c0f9815a1172f6846d4bcdd508e4c2ee747c2
   ostruct (0.6.3) sha256=95a2ed4a4bd1d190784e666b47b2d3f078e4a9efda2fccf18f84ddc6538ed912
   pagy (43.8.1) sha256=8f136a4bded93b04c87bc385e8be24c8b5adbaab1c0fac1c4c0c63eddae9c2ff
   parallel (2.3.0) sha256=f75a3e904101ce6a1ccb6b8dc800cbafd42166d83330192438dcf29395167a6f
