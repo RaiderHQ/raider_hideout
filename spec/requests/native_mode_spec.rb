@@ -36,6 +36,20 @@ RSpec.describe "Native app mode", type: :request do
       end
     end
 
+    # With viewport-fit=cover, WKWebView lays the page out under the native
+    # navigation bar, so the top of every page sat behind it.
+    it "lets the web view inset the page below the native bars" do
+      get project_path(project), headers: as_hotwire_native_ios
+      expect(response.body).to include('<meta name="viewport" content="width=device-width,initial-scale=1">')
+      expect(response.body).not_to include("viewport-fit=cover")
+    end
+
+    it "hides the project heading the native title repeats, but keeps the project's actions" do
+      get project_path(project), headers: as_hotwire_native_ios
+      expect(response.body).to match(%r{<h1 class="[^"]*sr-only[^"]*">Shop tests</h1>})
+      expect(response.body).to include("Run tests", "Builds", %(href="#{project_builds_path(project)}"))
+    end
+
     it "keeps the project breadcrumb, which is content" do
       get project_path(project), headers: as_hotwire_native_ios
       expect(response.body).to include('aria-label="Breadcrumb"')
@@ -64,6 +78,18 @@ RSpec.describe "Native app mode", type: :request do
       get projects_path, headers: { "HTTP_USER_AGENT" => NativeHelpers::ANDROID_AGENT }
       expect(response.body).to include('data-native="android"')
       expect(response.body).not_to include("shadow-nav")
+    end
+  end
+
+  describe "in a browser" do
+    before { sign_in(user) }
+
+    it "keeps the full-bleed viewport and the visible project heading" do
+      get project_path(project), headers: browser
+      expect(response.body).to include("viewport-fit=cover")
+      heading = response.body[%r{<h1 class="([^"]*)">Shop tests</h1>}, 1]
+      expect(heading).not_to be_nil
+      expect(heading).not_to include("sr-only")
     end
   end
 

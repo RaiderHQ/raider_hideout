@@ -2,7 +2,8 @@
 <html>
   <head>
     <title><%= page_title %></title>
-    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <%# In the app the native bars sit over the web view: without viewport-fit=cover WebKit insets the page below them. %>
+    <meta name="viewport" content="width=device-width,initial-scale=1<%= ",viewport-fit=cover" unless hotwire_native_app? %>">
     <meta name="theme-color" content="#C14420">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
