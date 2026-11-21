@@ -157,7 +157,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Scan Gemfile.lock for known vulnerabilities
-        uses: google/osv-scanner-action/osv-scanner-action@v2.7.0
+        uses: google/osv-scanner-action/osv-scanner-action@v2.7.1
         with:
           scan-args: |-
             --lockfile=Gemfile.lock
